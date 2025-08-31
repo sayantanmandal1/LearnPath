@@ -97,3 +97,40 @@ class ExternalServiceError(APIException):
             detail=f"{service}: {detail}",
             error_code="EXTERNAL_SERVICE_ERROR"
         )
+
+
+class ServiceException(Exception):
+    """General service layer exception"""
+    
+    def __init__(self, message: str, error_code: Optional[str] = None):
+        self.message = message
+        self.error_code = error_code
+        super().__init__(message)
+
+
+class AnalyticsError(ServiceException):
+    """Analytics service specific errors"""
+    
+    def __init__(self, message: str):
+        super().__init__(message, "ANALYTICS_ERROR")
+
+
+class DataNotFoundError(ServiceException):
+    """Data not found errors"""
+    
+    def __init__(self, message: str):
+        super().__init__(message, "DATA_NOT_FOUND")
+
+
+class VisualizationError(ServiceException):
+    """Visualization service specific errors"""
+    
+    def __init__(self, message: str):
+        super().__init__(message, "VISUALIZATION_ERROR")
+
+
+class PDFGenerationError(ServiceException):
+    """PDF generation specific errors"""
+    
+    def __init__(self, message: str):
+        super().__init__(message, "PDF_GENERATION_ERROR")
