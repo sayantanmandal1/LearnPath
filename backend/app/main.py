@@ -16,11 +16,13 @@ from app.core.redis import redis_manager
 from app.middleware.error_handler import ErrorHandlerMiddleware
 from app.middleware.logging import LoggingMiddleware
 from app.middleware.metrics import MetricsMiddleware
+from app.core.rate_limiting import RateLimitMiddleware
 from app.api.v1.router import api_router
 from app.services.performance_monitoring import performance_monitor
 from app.core.monitoring import system_monitor
 from app.core.graceful_degradation import degradation_manager
 from app.core.alerting import alerting_system
+from app.services.data_pipeline.pipeline_initializer import initialize_pipeline_automation, shutdown_pipeline_automation
 
 logger = structlog.get_logger()
 
@@ -58,9 +60,24 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     degradation_manager.register_service("linkedin", fallback_handler=None)
     degradation_manager.register_service("job_scrapers", fallback_handler=None)
     
+    # Initialize pipeline automation system
+    try:
+        await initialize_pipeline_automation()
+        logger.info("Pipeline automation system initialized")
+    except Exception as e:
+        logger.error("Failed to initialize pipeline automation", error=str(e))
+        # Continue startup even if pipeline automation fails
+    
     yield
     
     # Shutdown
+    # Shutdown pipeline automation system
+    try:
+        await shutdown_pipeline_automation()
+        logger.info("Pipeline automation system shut down")
+    except Exception as e:
+        logger.error("Failed to shutdown pipeline automation", error=str(e))
+    
     await system_monitor.stop_monitoring()
     logger.info("System monitoring stopped")
     
@@ -226,10 +243,11 @@ def create_application() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Add custom middleware
+    # Add custom middleware (order matters - first added is outermost)
     app.add_middleware(ErrorHandlerMiddleware)
     app.add_middleware(LoggingMiddleware)
     app.add_middleware(MetricsMiddleware)
+    app.add_middleware(RateLimitMiddleware)
 
     # Include API router
     app.include_router(api_router, prefix=settings.API_V1_STR)

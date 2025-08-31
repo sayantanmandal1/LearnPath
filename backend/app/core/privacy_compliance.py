@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Union
 from enum import Enum
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import Column, String, DateTime, Text, Boolean, ForeignKey
+from sqlalchemy import Column, String, DateTime, Text, Boolean, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
@@ -72,7 +72,7 @@ class UserConsent(Base):
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)
     consent_version = Column(String(20), nullable=False, default="1.0")
-    metadata = Column(JSONB, nullable=True)
+    consent_metadata = Column(JSONB, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -85,7 +85,7 @@ class UserConsent(Base):
             "granted_at": self.granted_at.isoformat() if self.granted_at else None,
             "withdrawn_at": self.withdrawn_at.isoformat() if self.withdrawn_at else None,
             "consent_version": self.consent_version,
-            "metadata": self.metadata,
+            "metadata": self.consent_metadata,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
         }

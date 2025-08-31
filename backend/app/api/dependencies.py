@@ -56,8 +56,24 @@ async def get_current_active_user(
     return current_user
 
 
+async def get_current_admin_user(
+    current_user: Annotated[User, Depends(get_current_active_user)]
+) -> User:
+    """Get current authenticated admin user"""
+    # For now, check if user email contains 'admin' or has admin role
+    # In production, you would have a proper role-based system
+    if not (hasattr(current_user, 'is_admin') and current_user.is_admin) and 'admin' not in current_user.email.lower():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    return current_user
+
+
 # Type aliases for dependency injection
 DatabaseDep = Annotated[AsyncSession, Depends(get_db)]
 RedisDep = Annotated[RedisManager, Depends(get_redis)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 CurrentUserDep = Annotated[User, Depends(get_current_active_user)]
+AdminUserDep = Annotated[User, Depends(get_current_admin_user)]

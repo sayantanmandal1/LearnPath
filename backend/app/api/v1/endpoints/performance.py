@@ -11,7 +11,7 @@ from app.services.cache_service import get_cache_service
 from app.core.database_optimization import get_database_health, db_optimizer
 from app.core.celery_app import task_manager, celery_health_check
 from app.api.dependencies import get_current_user
-from app.schemas.auth import User
+from app.models.user import User
 
 logger = structlog.get_logger()
 router = APIRouter()

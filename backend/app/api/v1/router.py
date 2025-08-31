@@ -5,7 +5,8 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     auth, external_profiles, profiles, recommendations, career_trajectory, 
-    learning_paths, analytics, job_market, vector_search, comprehensive_api, performance, health
+    learning_paths, analytics, job_market, vector_search, comprehensive_api, performance, health,
+    privacy, security, pipeline_automation
 )
 
 api_router = APIRouter()
@@ -23,3 +24,6 @@ api_router.include_router(vector_search.router, tags=["vector-search"])
 api_router.include_router(comprehensive_api.router, prefix="/comprehensive", tags=["comprehensive-api"])
 api_router.include_router(performance.router, prefix="/performance", tags=["performance"])
 api_router.include_router(health.router, prefix="/health", tags=["health"])
+api_router.include_router(privacy.router, prefix="/privacy", tags=["privacy"])
+api_router.include_router(security.router, prefix="/security", tags=["security"])
+api_router.include_router(pipeline_automation.router, prefix="/pipeline", tags=["pipeline-automation"])

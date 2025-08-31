@@ -1,0 +1,197 @@
+# Data Pipeline Automation Configuration
+# This file contains configuration settings for the automated data pipeline system
+
+# Redis Configuration
+redis:
+  host: ${REDIS_HOST:-localhost}
+  port: ${REDIS_PORT:-6379}
+  db: ${REDIS_DB:-0}
+  password: ${REDIS_PASSWORD:-}
+
+# Pipeline Execution Settings
+execution:
+  max_concurrent_jobs: ${MAX_CONCURRENT_PIPELINE_JOBS:-5}
+  default_timeout: ${DEFAULT_PIPELINE_TIMEOUT:-3600}  # 1 hour
+  default_retry_count: ${DEFAULT_RETRY_COUNT:-3}
+  default_retry_delay: ${DEFAULT_RETRY_DELAY:-300}  # 5 minutes
+
+# Data Quality Thresholds
+data_quality:
+  min_job_postings_per_day: ${MIN_JOB_POSTINGS_PER_DAY:-100}
+  max_skill_extraction_error_rate: ${MAX_SKILL_EXTRACTION_ERROR_RATE:-0.1}  # 10%
+  min_profile_refresh_success_rate: ${MIN_PROFILE_REFRESH_SUCCESS_RATE:-0.8}  # 80%
+  min_data_quality_score: 0.7  # 70%
+
+# Backup and Recovery Settings
+backup:
+  retention_days: ${BACKUP_RETENTION_DAYS:-30}
+  location: ${BACKUP_LOCATION:-/app/backups}
+  enable_auto_backup: ${ENABLE_AUTO_BACKUP:-true}
+  compression_enabled: true
+  include_ml_models: true
+
+# Monitoring and Alerting
+monitoring:
+  enable_monitoring: ${ENABLE_PIPELINE_MONITORING:-true}
+  alert_webhook_url: ${ALERT_WEBHOOK_URL:-}
+  alert_email: ${ALERT_EMAIL:-}
+  health_check_interval: 300  # 5 minutes
+  metrics_retention_days: 30
+
+# Default Pipeline Schedules
+schedules:
+  job_collection:
+    # Daily job posting collection at 2 AM UTC
+    schedule_type: cron
+    schedule_config:
+      hour: 2
+      minute: 0
+      timezone: UTC
+    max_retries: 3
+    retry_delay: 1800  # 30 minutes
+    timeout: 7200  # 2 hours
+    enabled: true
+    metadata:
+      description: "Daily automated job posting collection"
+      sources: ["linkedin", "indeed", "glassdoor"]
+      max_jobs_per_source: 1000
+
+  skill_taxonomy_update:
+    # Weekly skill taxonomy update on Sundays at 3 AM UTC
+    schedule_type: cron
+    schedule_config:
+      day_of_week: sun
+      hour: 3
+      minute: 0
+      timezone: UTC
+    max_retries: 2
+    retry_delay: 3600  # 1 hour
+    timeout: 10800  # 3 hours
+    enabled: true
+    metadata:
+      description: "Weekly skill taxonomy update from market trends"
+
+  profile_refresh:
+    # Profile refresh every 6 hours
+    schedule_type: interval
+    schedule_config:
+      hours: 6
+    max_retries: 2
+    retry_delay: 1800  # 30 minutes
+    timeout: 3600  # 1 hour
+    enabled: true
+    metadata:
+      description: "Regular profile refresh from external platforms"
+      platforms: ["github", "linkedin", "leetcode"]
+      max_profiles: 1000
+
+  model_training:
+    # Model retraining weekly on Saturdays at 1 AM UTC
+    schedule_type: cron
+    schedule_config:
+      day_of_week: sat
+      hour: 1
+      minute: 0
+      timezone: UTC
+    max_retries: 1
+    retry_delay: 7200  # 2 hours
+    timeout: 14400  # 4 hours
+    enabled: true
+    metadata:
+      description: "Weekly model retraining with performance monitoring"
+      models: ["recommendation", "skill_extraction", "career_prediction"]
+      enable_ab_testing: true
+
+  data_quality_check:
+    # Data quality checks every 4 hours
+    schedule_type: interval
+    schedule_config:
+      hours: 4
+    max_retries: 1
+    retry_delay: 900  # 15 minutes
+    timeout: 1800  # 30 minutes
+    enabled: true
+    metadata:
+      description: "Regular data quality monitoring and validation"
+
+  backup:
+    # Daily backup at 4 AM UTC
+    schedule_type: cron
+    schedule_config:
+      hour: 4
+      minute: 0
+      timezone: UTC
+    max_retries: 2
+    retry_delay: 1800  # 30 minutes
+    timeout: 3600  # 1 hour
+    enabled: true
+    metadata:
+      description: "Daily system backup and disaster recovery"
+      backup_type: "incremental"
+      include_ml_models: true
+      compress_backup: true
+
+# Pipeline-specific Settings
+pipelines:
+  job_collection:
+    default_search_terms:
+      - "software engineer"
+      - "data scientist"
+      - "product manager"
+      - "frontend developer"
+      - "backend developer"
+      - "full stack developer"
+      - "devops engineer"
+      - "machine learning engineer"
+      - "data analyst"
+      - "ui ux designer"
+    rate_limits:
+      linkedin: 100  # requests per hour
+      indeed: 200
+      glassdoor: 50
+    
+  skill_taxonomy:
+    emerging_skill_threshold: 10  # minimum mentions to consider as emerging
+    obsolete_skill_days: 180  # days without mentions to consider obsolete
+    confidence_threshold: 0.6  # minimum confidence for skill classification
+    
+  profile_refresh:
+    batch_size: 50  # profiles to process in parallel
+    freshness_threshold_hours: 24  # hours before data is considered stale
+    platform_timeouts:
+      github: 30  # seconds
+      linkedin: 45
+      leetcode: 20
+    
+  model_training:
+    min_training_data:
+      profiles: 100
+      jobs: 500
+      interactions: 1000
+    performance_thresholds:
+      accuracy: 0.85
+      precision: 0.80
+      recall: 0.80
+    
+  data_quality:
+    validation_rules:
+      job_posting_completeness: 0.8
+      skill_extraction_accuracy: 0.85
+      profile_data_freshness: 24  # hours
+      duplicate_rate_threshold: 0.1
+      data_consistency_threshold: 0.9
+
+# Logging Configuration
+logging:
+  level: ${LOG_LEVEL:-INFO}
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_rotation: true
+  max_file_size: "10MB"
+  backup_count: 5
+
+# Security Settings
+security:
+  encrypt_sensitive_data: true
+  audit_pipeline_operations: true
+  require_authentication: true
+  rate_limit_api_calls: true
