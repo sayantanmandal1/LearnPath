@@ -1,7 +1,7 @@
 """
 Application configuration settings
 """
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import Field, validator
 from pydantic_settings import BaseSettings
@@ -44,6 +44,50 @@ class Settings(BaseSettings):
     
     # Monitoring
     ENABLE_METRICS: bool = True
+    ENABLE_ALERTING: bool = True
+    
+    # Alerting Configuration
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_USE_TLS: bool = True
+    ALERT_FROM_EMAIL: str = "alerts@aicareer.com"
+    ALERT_TO_EMAILS: List[str] = ["admin@aicareer.com"]
+    
+    SLACK_WEBHOOK_URL: Optional[str] = None
+    SLACK_CHANNEL: str = "#alerts"
+    SLACK_USERNAME: str = "AI Career Bot"
+    
+    ALERT_WEBHOOK_URL: Optional[str] = None
+    ALERT_WEBHOOK_HEADERS: Dict[str, str] = {}
+    
+    # Performance Optimization
+    CACHE_LOCAL_TTL: int = 60  # Local cache TTL in seconds
+    PERFORMANCE_MONITORING_INTERVAL: int = 60  # Performance metrics collection interval
+    MAX_METRICS_HISTORY: int = 1000  # Maximum number of metrics to keep in memory
+    
+    # Celery Configuration
+    CELERY_BROKER_URL: Optional[str] = None  # Defaults to REDIS_URL
+    CELERY_RESULT_BACKEND: Optional[str] = None  # Defaults to REDIS_URL
+    CELERY_WORKER_CONCURRENCY: int = 4
+    CELERY_TASK_SOFT_TIME_LIMIT: int = 300  # 5 minutes
+    CELERY_TASK_TIME_LIMIT: int = 600  # 10 minutes
+    
+    # Database Optimization
+    DB_QUERY_TIMEOUT: int = 30  # Database query timeout in seconds
+    DB_SLOW_QUERY_THRESHOLD: float = 1.0  # Slow query threshold in seconds
+    DB_CONNECTION_TIMEOUT: int = 5  # Connection timeout in seconds
+    
+    @property
+    def celery_broker_url(self) -> str:
+        """Get Celery broker URL, defaulting to Redis URL"""
+        return self.CELERY_BROKER_URL or self.REDIS_URL
+    
+    @property
+    def celery_result_backend(self) -> str:
+        """Get Celery result backend URL, defaulting to Redis URL"""
+        return self.CELERY_RESULT_BACKEND or self.REDIS_URL
     
     @validator("ALLOWED_HOSTS", pre=True)
     def assemble_cors_origins(cls, v):

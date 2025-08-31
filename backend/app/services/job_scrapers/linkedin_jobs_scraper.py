@@ -56,7 +56,7 @@ class LinkedInJobsScraper(BaseJobScraper):
             
             for job_element in job_elements:
                 try:
-                    job_data = self._parse_job_listing(job_element, self.base_url)
+                    job_data = await self._parse_job_listing(job_element, self.base_url)
                     if job_data:
                         jobs.append(job_data)
                 except Exception as e:
@@ -109,7 +109,7 @@ class LinkedInJobsScraper(BaseJobScraper):
         
         return search_params
     
-    def _parse_job_listing(self, job_element: Any, base_url: str) -> Optional[ScrapedJob]:
+    async def _parse_job_listing(self, job_element: Any, base_url: str) -> Optional[ScrapedJob]:
         """Parse individual LinkedIn job listing"""
         try:
             # Extract job title and link
@@ -255,7 +255,7 @@ class LinkedInJobsScraper(BaseJobScraper):
                 
                 for job_element in job_elements:
                     try:
-                        job_data = self._parse_job_listing(job_element, self.base_url)
+                        job_data = await self._parse_job_listing(job_element, self.base_url)
                         if job_data:
                             jobs.append(job_data)
                     except Exception as e:

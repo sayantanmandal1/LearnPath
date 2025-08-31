@@ -7,7 +7,8 @@ Pinecone and Weaviate setup parameters.
 
 import os
 from typing import Optional, Dict, Any
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field
 
 
 class VectorDBConfig(BaseSettings):
@@ -37,9 +38,11 @@ class VectorDBConfig(BaseSettings):
     # Index configuration
     SIMILARITY_METRIC: str = Field(default="cosine", env="VECTOR_DB_SIMILARITY_METRIC")
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "extra": "ignore"
+    }
 
 
 # Global configuration instance

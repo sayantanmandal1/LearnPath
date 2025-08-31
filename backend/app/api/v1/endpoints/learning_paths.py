@@ -13,15 +13,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from fastapi.security import HTTPBearer
 import logging
 
-from ....schemas.learning_path import (
+from app.schemas.learning_path import (
     LearningPathRequest, LearningPathResponse, LearningPath,
     ProjectRecommendation, LearningProgress, DifficultyLevel,
     ResourceProvider, LearningPathUpdate
 )
-from ....schemas.auth import User
-from ....services.learning_path_service import LearningPathService
-from ....api.dependencies import get_current_user
-from ....core.exceptions import ServiceException
+from app.models.user import User
+from app.services.learning_path_service import LearningPathService
+from app.api.dependencies import get_current_user
+from app.core.exceptions import ServiceException
 
 
 logger = logging.getLogger(__name__)

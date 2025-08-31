@@ -946,3 +946,493 @@ class LearningPathService:
             path.confidence_score = calculate_ranking_score(path)
         
         return sorted(paths, key=lambda p: p.confidence_score or 0, reverse=True)
+    
+    async def generate_customized_learning_paths(self, user_id: str, target_skills: List[str],
+                                               customization: Dict[str, Any],
+                                               db = None) -> List[Dict[str, Any]]:
+        """
+        Generate customized learning paths based on detailed preferences.
+        
+        Args:
+            user_id: User identifier
+            target_skills: Skills to learn
+            customization: Customization parameters (time, budget, style, etc.)
+            db: Database session
+            
+        Returns:
+            List of customized learning paths
+        """
+        try:
+            logger.info(f"Generating customized learning paths for user {user_id}")
+            
+            # Extract customization parameters
+            difficulty_preference = customization.get('difficulty_preference', 'intermediate')
+            time_commitment = customization.get('time_commitment_hours_per_week', 10)
+            budget_max = customization.get('budget_max')
+            preferred_providers = customization.get('preferred_providers', [])
+            learning_style = customization.get('learning_style', 'mixed')
+            include_projects = customization.get('include_projects', True)
+            
+            learning_paths = []
+            
+            for skill in target_skills:
+                # Generate learning path for each skill
+                path = await self._generate_skill_learning_path(
+                    skill=skill,
+                    difficulty_preference=difficulty_preference,
+                    time_commitment=time_commitment,
+                    budget_max=budget_max,
+                    preferred_providers=preferred_providers,
+                    learning_style=learning_style,
+                    include_projects=include_projects
+                )
+                
+                learning_paths.append(path)
+            
+            return learning_paths
+            
+        except Exception as e:
+            logger.error(f"Error generating customized learning paths: {e}")
+            raise ServiceException(f"Failed to generate customized learning paths: {str(e)}")
+    
+    async def _generate_skill_learning_path(self, skill: str, difficulty_preference: str,
+                                          time_commitment: int, budget_max: Optional[float],
+                                          preferred_providers: List[str], learning_style: str,
+                                          include_projects: bool) -> Dict[str, Any]:
+        """Generate learning path for a specific skill with customization."""
+        try:
+            # Get skill information from taxonomy
+            skill_info = self._get_skill_info(skill)
+            
+            # Generate learning resources based on preferences
+            resources = await self._get_customized_resources(
+                skill=skill,
+                difficulty_preference=difficulty_preference,
+                budget_max=budget_max,
+                preferred_providers=preferred_providers,
+                learning_style=learning_style
+            )
+            
+            # Generate milestones
+            milestones = self._generate_skill_milestones(skill, difficulty_preference)
+            
+            # Calculate timeline based on time commitment
+            total_hours = sum(resource.get('duration_hours', 0) for resource in resources)
+            estimated_weeks = max(1, total_hours // time_commitment)
+            
+            # Add projects if requested
+            projects = []
+            if include_projects:
+                projects = await self._get_skill_projects(skill, difficulty_preference)
+            
+            # Calculate estimated cost
+            estimated_cost = sum(
+                resource.get('cost', 0) for resource in resources 
+                if resource.get('cost', 0) > 0
+            )
+            
+            return {
+                'skill': skill,
+                'title': f"Master {skill.title()}",
+                'difficulty_level': difficulty_preference,
+                'estimated_duration_weeks': estimated_weeks,
+                'estimated_cost': estimated_cost,
+                'resources': resources,
+                'milestones': milestones,
+                'projects': projects,
+                'customization_applied': {
+                    'difficulty_preference': difficulty_preference,
+                    'time_commitment_hours_per_week': time_commitment,
+                    'budget_max': budget_max,
+                    'preferred_providers': preferred_providers,
+                    'learning_style': learning_style,
+                    'include_projects': include_projects
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating skill learning path for {skill}: {e}")
+            raise ServiceException(f"Failed to generate learning path for {skill}: {str(e)}")
+    
+    async def _get_customized_resources(self, skill: str, difficulty_preference: str,
+                                      budget_max: Optional[float], preferred_providers: List[str],
+                                      learning_style: str) -> List[Dict[str, Any]]:
+        """Get customized learning resources based on preferences."""
+        try:
+            # Base resources for the skill
+            base_resources = self._get_base_skill_resources(skill, difficulty_preference)
+            
+            # Filter by budget
+            if budget_max is not None:
+                base_resources = [
+                    resource for resource in base_resources
+                    if resource.get('cost', 0) <= budget_max
+                ]
+            
+            # Filter by preferred providers
+            if preferred_providers:
+                filtered_resources = []
+                for resource in base_resources:
+                    if resource.get('provider', '').lower() in [p.lower() for p in preferred_providers]:
+                        filtered_resources.append(resource)
+                # If no resources match preferred providers, include all
+                if filtered_resources:
+                    base_resources = filtered_resources
+            
+            # Customize based on learning style
+            if learning_style == 'visual':
+                # Prioritize video courses and interactive content
+                base_resources.sort(key=lambda x: (
+                    x.get('type') in ['course', 'tutorial'] and 'video' in x.get('title', '').lower(),
+                    x.get('rating', 0)
+                ), reverse=True)
+            elif learning_style == 'hands_on':
+                # Prioritize projects and practical exercises
+                base_resources.sort(key=lambda x: (
+                    x.get('type') in ['project', 'tutorial'],
+                    x.get('rating', 0)
+                ), reverse=True)
+            elif learning_style == 'reading':
+                # Prioritize books and documentation
+                base_resources.sort(key=lambda x: (
+                    x.get('type') in ['book', 'documentation'],
+                    x.get('rating', 0)
+                ), reverse=True)
+            else:  # mixed
+                # Balance different types
+                base_resources.sort(key=lambda x: x.get('rating', 0), reverse=True)
+            
+            return base_resources[:10]  # Limit to top 10 resources
+            
+        except Exception as e:
+            logger.error(f"Error getting customized resources: {e}")
+            return []
+    
+    def _get_base_skill_resources(self, skill: str, difficulty: str) -> List[Dict[str, Any]]:
+        """Get base learning resources for a skill."""
+        # This would typically query a database of learning resources
+        # For now, return mock data based on skill and difficulty
+        
+        skill_lower = skill.lower()
+        
+        if 'python' in skill_lower:
+            return [
+                {
+                    'title': f'Complete Python {difficulty.title()} Course',
+                    'type': 'course',
+                    'provider': 'Coursera',
+                    'url': 'https://coursera.org/python',
+                    'rating': 4.7,
+                    'duration_hours': 40,
+                    'cost': 49.99 if difficulty != 'beginner' else 0,
+                    'prerequisites': [] if difficulty == 'beginner' else ['programming_basics']
+                },
+                {
+                    'title': 'Python Official Documentation',
+                    'type': 'documentation',
+                    'provider': 'Python.org',
+                    'url': 'https://docs.python.org',
+                    'rating': 4.8,
+                    'duration_hours': 20,
+                    'cost': 0,
+                    'prerequisites': []
+                },
+                {
+                    'title': f'Python {difficulty.title()} Projects',
+                    'type': 'project',
+                    'provider': 'GitHub',
+                    'url': 'https://github.com/python-projects',
+                    'rating': 4.5,
+                    'duration_hours': 30,
+                    'cost': 0,
+                    'prerequisites': ['python_basics']
+                }
+            ]
+        elif 'javascript' in skill_lower:
+            return [
+                {
+                    'title': f'JavaScript {difficulty.title()} Bootcamp',
+                    'type': 'course',
+                    'provider': 'Udemy',
+                    'url': 'https://udemy.com/javascript',
+                    'rating': 4.6,
+                    'duration_hours': 35,
+                    'cost': 89.99,
+                    'prerequisites': [] if difficulty == 'beginner' else ['html', 'css']
+                },
+                {
+                    'title': 'MDN JavaScript Guide',
+                    'type': 'documentation',
+                    'provider': 'Mozilla',
+                    'url': 'https://developer.mozilla.org/en-US/docs/Web/JavaScript',
+                    'rating': 4.9,
+                    'duration_hours': 15,
+                    'cost': 0,
+                    'prerequisites': []
+                }
+            ]
+        elif 'machine learning' in skill_lower or 'ml' in skill_lower:
+            return [
+                {
+                    'title': f'Machine Learning {difficulty.title()} Specialization',
+                    'type': 'course',
+                    'provider': 'Coursera',
+                    'url': 'https://coursera.org/ml',
+                    'rating': 4.8,
+                    'duration_hours': 60,
+                    'cost': 79.99,
+                    'prerequisites': ['python', 'statistics', 'linear_algebra']
+                },
+                {
+                    'title': 'Scikit-learn Documentation',
+                    'type': 'documentation',
+                    'provider': 'Scikit-learn',
+                    'url': 'https://scikit-learn.org/stable/',
+                    'rating': 4.7,
+                    'duration_hours': 25,
+                    'cost': 0,
+                    'prerequisites': ['python']
+                }
+            ]
+        else:
+            # Generic resources for unknown skills
+            return [
+                {
+                    'title': f'Complete {skill.title()} Course',
+                    'type': 'course',
+                    'provider': 'Online Learning Platform',
+                    'url': f'https://example.com/{skill.lower()}',
+                    'rating': 4.5,
+                    'duration_hours': 30,
+                    'cost': 49.99,
+                    'prerequisites': []
+                },
+                {
+                    'title': f'{skill.title()} Documentation',
+                    'type': 'documentation',
+                    'provider': 'Official',
+                    'url': f'https://docs.{skill.lower()}.org',
+                    'rating': 4.6,
+                    'duration_hours': 15,
+                    'cost': 0,
+                    'prerequisites': []
+                }
+            ]
+    
+    def _generate_skill_milestones(self, skill: str, difficulty: str) -> List[Dict[str, Any]]:
+        """Generate learning milestones for a skill."""
+        skill_lower = skill.lower()
+        
+        if difficulty == 'beginner':
+            return [
+                {
+                    'title': f'Learn {skill.title()} Basics',
+                    'description': f'Understand fundamental concepts of {skill}',
+                    'estimated_weeks': 2,
+                    'completion_criteria': [
+                        'Complete introductory course',
+                        'Understand basic syntax and concepts',
+                        'Complete practice exercises'
+                    ]
+                },
+                {
+                    'title': f'Build First {skill.title()} Project',
+                    'description': f'Create a simple project using {skill}',
+                    'estimated_weeks': 2,
+                    'completion_criteria': [
+                        'Design and implement a basic project',
+                        'Document the code',
+                        'Test the functionality'
+                    ]
+                }
+            ]
+        elif difficulty == 'intermediate':
+            return [
+                {
+                    'title': f'Master {skill.title()} Intermediate Concepts',
+                    'description': f'Learn advanced features and best practices',
+                    'estimated_weeks': 3,
+                    'completion_criteria': [
+                        'Complete intermediate course modules',
+                        'Understand design patterns',
+                        'Practice code optimization'
+                    ]
+                },
+                {
+                    'title': f'Build Complex {skill.title()} Application',
+                    'description': f'Create a full-featured application',
+                    'estimated_weeks': 4,
+                    'completion_criteria': [
+                        'Implement complex features',
+                        'Add error handling and testing',
+                        'Deploy to production'
+                    ]
+                }
+            ]
+        else:  # advanced
+            return [
+                {
+                    'title': f'Master {skill.title()} Architecture',
+                    'description': f'Learn system design and architecture patterns',
+                    'estimated_weeks': 4,
+                    'completion_criteria': [
+                        'Study architectural patterns',
+                        'Design scalable systems',
+                        'Implement performance optimizations'
+                    ]
+                },
+                {
+                    'title': f'Contribute to {skill.title()} Open Source',
+                    'description': f'Contribute to open source projects',
+                    'estimated_weeks': 6,
+                    'completion_criteria': [
+                        'Find suitable open source projects',
+                        'Submit meaningful contributions',
+                        'Collaborate with maintainers'
+                    ]
+                }
+            ]
+    
+    async def _get_skill_projects(self, skill: str, difficulty: str) -> List[Dict[str, Any]]:
+        """Get project recommendations for a skill."""
+        # This would typically query GitHub API or project database
+        # For now, return mock project data
+        
+        skill_lower = skill.lower()
+        
+        if 'python' in skill_lower:
+            if difficulty == 'beginner':
+                return [
+                    {
+                        'title': 'Calculator App',
+                        'description': 'Build a simple calculator with GUI',
+                        'difficulty': 'beginner',
+                        'estimated_hours': 8,
+                        'skills_practiced': ['python', 'tkinter', 'basic_programming'],
+                        'github_url': 'https://github.com/example/python-calculator'
+                    },
+                    {
+                        'title': 'To-Do List Manager',
+                        'description': 'Create a command-line to-do list application',
+                        'difficulty': 'beginner',
+                        'estimated_hours': 12,
+                        'skills_practiced': ['python', 'file_handling', 'data_structures'],
+                        'github_url': 'https://github.com/example/todo-manager'
+                    }
+                ]
+            elif difficulty == 'intermediate':
+                return [
+                    {
+                        'title': 'Web Scraper with API',
+                        'description': 'Build a web scraper that exposes data via REST API',
+                        'difficulty': 'intermediate',
+                        'estimated_hours': 25,
+                        'skills_practiced': ['python', 'web_scraping', 'flask', 'api_design'],
+                        'github_url': 'https://github.com/example/web-scraper-api'
+                    },
+                    {
+                        'title': 'Data Analysis Dashboard',
+                        'description': 'Create an interactive dashboard for data visualization',
+                        'difficulty': 'intermediate',
+                        'estimated_hours': 30,
+                        'skills_practiced': ['python', 'pandas', 'plotly', 'streamlit'],
+                        'github_url': 'https://github.com/example/data-dashboard'
+                    }
+                ]
+            else:  # advanced
+                return [
+                    {
+                        'title': 'Microservices Architecture',
+                        'description': 'Build a distributed system with multiple microservices',
+                        'difficulty': 'advanced',
+                        'estimated_hours': 60,
+                        'skills_practiced': ['python', 'microservices', 'docker', 'kubernetes', 'api_gateway'],
+                        'github_url': 'https://github.com/example/microservices-system'
+                    }
+                ]
+        
+        # Default projects for other skills
+        return [
+            {
+                'title': f'{skill.title()} Practice Project',
+                'description': f'Hands-on project to practice {skill} skills',
+                'difficulty': difficulty,
+                'estimated_hours': 20,
+                'skills_practiced': [skill.lower(), 'problem_solving'],
+                'github_url': f'https://github.com/example/{skill.lower()}-project'
+            }
+        ]
+    
+    def _get_skill_info(self, skill: str) -> Dict[str, Any]:
+        """Get skill information from taxonomy."""
+        skill_lower = skill.lower()
+        
+        # Check if skill exists in taxonomy
+        for category, skills in self.skill_taxonomy.items():
+            if skill_lower in skills:
+                return skills[skill_lower]
+        
+        # Return default info for unknown skills
+        return {
+            'difficulty': 'intermediate',
+            'category': 'general',
+            'prerequisites': []
+        }
+    
+    async def generate_learning_paths_for_role(self, user_id: str, target_role: str,
+                                             db = None) -> List[Dict[str, Any]]:
+        """Generate learning paths specifically for a target role."""
+        try:
+            # Get required skills for the target role
+            role_skills = self._get_role_required_skills(target_role)
+            
+            # Generate learning paths for each required skill
+            learning_paths = []
+            for skill in role_skills:
+                path = await self._generate_skill_learning_path(
+                    skill=skill,
+                    difficulty_preference='intermediate',
+                    time_commitment=10,
+                    budget_max=None,
+                    preferred_providers=[],
+                    learning_style='mixed',
+                    include_projects=True
+                )
+                learning_paths.append(path)
+            
+            return learning_paths
+            
+        except Exception as e:
+            logger.error(f"Error generating learning paths for role {target_role}: {e}")
+            raise ServiceException(f"Failed to generate learning paths for role: {str(e)}")
+    
+    def _get_role_required_skills(self, target_role: str) -> List[str]:
+        """Get required skills for a target role."""
+        role_lower = target_role.lower()
+        
+        role_skills_map = {
+            'software engineer': ['python', 'javascript', 'sql', 'git', 'algorithms'],
+            'data scientist': ['python', 'machine learning', 'statistics', 'sql', 'pandas'],
+            'frontend developer': ['javascript', 'react', 'html', 'css', 'typescript'],
+            'backend developer': ['python', 'sql', 'api design', 'docker', 'microservices'],
+            'devops engineer': ['docker', 'kubernetes', 'aws', 'linux', 'terraform'],
+            'machine learning engineer': ['python', 'machine learning', 'tensorflow', 'docker', 'mlops']
+        }
+        
+        for role, skills in role_skills_map.items():
+            if role in role_lower:
+                return skills
+        
+        # Default skills for unknown roles
+        return ['communication', 'problem solving', 'teamwork']
+    
+    async def get_user_learning_paths(self, user_id: str, db = None) -> List[Dict[str, Any]]:
+        """Get all learning paths for a user."""
+        try:
+            # This would typically fetch from database
+            # For now, return empty list as placeholder
+            return []
+            
+        except Exception as e:
+            logger.error(f"Error getting user learning paths: {e}")
+            raise ServiceException(f"Failed to get user learning paths: {str(e)}")

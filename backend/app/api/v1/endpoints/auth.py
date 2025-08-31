@@ -65,8 +65,8 @@ async def refresh_token(
 
 @router.post("/logout")
 async def logout(
+    auth_service: AuthServiceDep,
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    auth_service: AuthServiceDep = Depends(),
 ) -> Any:
     """Logout user and revoke refresh token"""
     # Note: In a real implementation, you might want to maintain a blacklist

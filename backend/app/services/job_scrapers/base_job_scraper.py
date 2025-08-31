@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import httpx
 from bs4 import BeautifulSoup
 
-from app.core.exceptions import ExternalAPIError
+from app.core.exceptions import ExternalServiceError as ExternalAPIError
 
 
 @dataclass

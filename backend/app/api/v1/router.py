@@ -3,7 +3,10 @@ Main API v1 router
 """
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, external_profiles, profiles, recommendations, career_trajectory, learning_paths, analytics, job_market, vector_search
+from app.api.v1.endpoints import (
+    auth, external_profiles, profiles, recommendations, career_trajectory, 
+    learning_paths, analytics, job_market, vector_search, comprehensive_api, performance, health
+)
 
 api_router = APIRouter()
 
@@ -17,3 +20,6 @@ api_router.include_router(learning_paths.router, prefix="/learning-paths", tags=
 api_router.include_router(job_market.router, prefix="/job-market", tags=["job-market"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(vector_search.router, tags=["vector-search"])
+api_router.include_router(comprehensive_api.router, prefix="/comprehensive", tags=["comprehensive-api"])
+api_router.include_router(performance.router, prefix="/performance", tags=["performance"])
+api_router.include_router(health.router, prefix="/health", tags=["health"])

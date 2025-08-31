@@ -14,7 +14,7 @@ from app.repositories.job import JobRepository, JobSkillRepository
 from app.repositories.skill import SkillRepository
 from app.models.job import JobPosting, JobSkill
 from app.models.skill import Skill
-from app.core.exceptions import ProcessingError
+from app.core.exceptions import ServiceException as ProcessingError
 
 # Import NLP engine
 import sys

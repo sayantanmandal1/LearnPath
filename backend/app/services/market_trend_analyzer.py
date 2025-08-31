@@ -710,3 +710,511 @@ class MarketTrendAnalyzer:
         
         result = await db.execute(query)
         return result.scalar() or 0
+    
+    async def get_comprehensive_market_analysis(self, db: AsyncSession, skills: List[str],
+                                              locations: Optional[List[str]] = None,
+                                              time_period_days: int = 90,
+                                              include_predictions: bool = True,
+                                              include_comparisons: bool = True) -> Dict[str, Any]:
+        """
+        Get comprehensive market analysis with trends, predictions, and comparisons.
+        
+        Args:
+            db: Database session
+            skills: List of skills to analyze
+            locations: Optional list of locations to analyze
+            time_period_days: Analysis time period
+            include_predictions: Include future predictions
+            include_comparisons: Include skill comparisons
+            
+        Returns:
+            Comprehensive market analysis data
+        """
+        try:
+            logger.info(f"Generating comprehensive market analysis for {len(skills)} skills")
+            
+            analysis = {
+                'analysis_date': datetime.utcnow().isoformat(),
+                'time_period_days': time_period_days,
+                'skills_analyzed': skills,
+                'locations_analyzed': locations,
+                'market_overview': {},
+                'skill_trends': [],
+                'emerging_skills': [],
+                'salary_analysis': [],
+                'geographic_analysis': {},
+                'skill_comparisons': {}
+            }
+            
+            # Market overview
+            analysis['market_overview'] = await self._get_market_overview(db, time_period_days)
+            
+            # Skill trends analysis
+            for skill in skills:
+                skill_trend = await self._analyze_skill_trend(db, skill, time_period_days)
+                analysis['skill_trends'].append(skill_trend)
+            
+            # Emerging skills detection
+            emerging_skills = await self.detect_emerging_skills(db, time_period_days)
+            analysis['emerging_skills'] = [
+                {
+                    'skill_name': skill.skill_name,
+                    'growth_rate': skill.growth_rate,
+                    'current_demand': skill.current_demand,
+                    'trend_score': skill.trend_score,
+                    'confidence': skill.confidence
+                }
+                for skill in emerging_skills[:10]  # Top 10 emerging skills
+            ]
+            
+            # Salary analysis
+            if include_predictions:
+                for skill in skills:
+                    try:
+                        salary_predictions = await self.predict_salaries(
+                            db=db,
+                            skill_names=[skill],
+                            location=locations[0] if locations else None,
+                            days=time_period_days
+                        )
+                        if salary_predictions:
+                            analysis['salary_analysis'].append({
+                                'skill': skill,
+                                'predictions': salary_predictions[0].__dict__
+                            })
+                    except Exception as e:
+                        logger.warning(f"Failed to predict salary for {skill}: {e}")
+            
+            # Geographic analysis
+            if locations:
+                analysis['geographic_analysis'] = await self._analyze_geographic_trends(
+                    db, skills, locations, time_period_days
+                )
+            
+            # Skill comparisons
+            if include_comparisons and len(skills) > 1:
+                analysis['skill_comparisons'] = await self._compare_skills(
+                    db, skills, time_period_days
+                )
+            
+            return analysis
+            
+        except Exception as e:
+            logger.error(f"Error generating comprehensive market analysis: {e}")
+            raise Exception(f"Failed to generate market analysis: {str(e)}")
+    
+    async def get_skill_market_data(self, db: AsyncSession, skill: str) -> Dict[str, Any]:
+        """Get market data for a specific skill."""
+        try:
+            # Get job postings for this skill
+            job_repo = JobRepository()
+            
+            # Query jobs that mention this skill
+            query = select(JobPosting).where(
+                JobPosting.processed_skills.has_key(skill),
+                JobPosting.is_active == True,
+                JobPosting.posted_date >= datetime.utcnow() - timedelta(days=90)
+            )
+            
+            result = await db.execute(query)
+            jobs = result.scalars().all()
+            
+            if not jobs:
+                return {
+                    'skill': skill,
+                    'demand_score': 0.0,
+                    'job_count': 0,
+                    'avg_salary': None,
+                    'growth_trend': 'unknown',
+                    'market_competitiveness': 'low'
+                }
+            
+            # Calculate demand score based on job frequency
+            total_jobs_query = select(func.count(JobPosting.id)).where(
+                JobPosting.is_active == True,
+                JobPosting.posted_date >= datetime.utcnow() - timedelta(days=90)
+            )
+            total_jobs_result = await db.execute(total_jobs_query)
+            total_jobs = total_jobs_result.scalar() or 1
+            
+            demand_score = len(jobs) / total_jobs
+            
+            # Calculate average salary
+            salaries = [job.salary_max for job in jobs if job.salary_max and job.salary_max > 0]
+            avg_salary = sum(salaries) / len(salaries) if salaries else None
+            
+            # Determine growth trend (simplified)
+            recent_jobs = [job for job in jobs if job.posted_date >= datetime.utcnow() - timedelta(days=30)]
+            older_jobs = [job for job in jobs if job.posted_date < datetime.utcnow() - timedelta(days=30)]
+            
+            if len(recent_jobs) > len(older_jobs) * 1.2:
+                growth_trend = 'growing'
+            elif len(recent_jobs) < len(older_jobs) * 0.8:
+                growth_trend = 'declining'
+            else:
+                growth_trend = 'stable'
+            
+            # Market competitiveness based on demand score
+            if demand_score > 0.1:
+                competitiveness = 'high'
+            elif demand_score > 0.05:
+                competitiveness = 'medium'
+            else:
+                competitiveness = 'low'
+            
+            return {
+                'skill': skill,
+                'demand_score': round(demand_score, 4),
+                'job_count': len(jobs),
+                'avg_salary': round(avg_salary) if avg_salary else None,
+                'growth_trend': growth_trend,
+                'market_competitiveness': competitiveness,
+                'recent_job_count': len(recent_jobs),
+                'analysis_date': datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting skill market data for {skill}: {e}")
+            return {
+                'skill': skill,
+                'demand_score': 0.0,
+                'job_count': 0,
+                'error': str(e)
+            }
+    
+    async def get_role_market_data(self, db: AsyncSession, role: str) -> Dict[str, Any]:
+        """Get market data for a specific role."""
+        try:
+            # Query jobs for this role
+            query = select(JobPosting).where(
+                JobPosting.title.ilike(f"%{role}%"),
+                JobPosting.is_active == True,
+                JobPosting.posted_date >= datetime.utcnow() - timedelta(days=90)
+            )
+            
+            result = await db.execute(query)
+            jobs = result.scalars().all()
+            
+            if not jobs:
+                return {
+                    'role': role,
+                    'job_count': 0,
+                    'avg_salary': None,
+                    'demand_level': 'low',
+                    'top_skills': [],
+                    'locations': []
+                }
+            
+            # Calculate average salary
+            salaries = [job.salary_max for job in jobs if job.salary_max and job.salary_max > 0]
+            avg_salary = sum(salaries) / len(salaries) if salaries else None
+            
+            # Get top skills for this role
+            skill_counts = {}
+            for job in jobs:
+                if job.processed_skills:
+                    for skill, importance in job.processed_skills.items():
+                        skill_counts[skill] = skill_counts.get(skill, 0) + importance
+            
+            top_skills = sorted(skill_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+            
+            # Get top locations
+            location_counts = {}
+            for job in jobs:
+                if job.location:
+                    location_counts[job.location] = location_counts.get(job.location, 0) + 1
+            
+            top_locations = sorted(location_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+            
+            # Determine demand level
+            if len(jobs) > 100:
+                demand_level = 'high'
+            elif len(jobs) > 50:
+                demand_level = 'medium'
+            else:
+                demand_level = 'low'
+            
+            return {
+                'role': role,
+                'job_count': len(jobs),
+                'avg_salary': round(avg_salary) if avg_salary else None,
+                'salary_range': {
+                    'min': min(salaries) if salaries else None,
+                    'max': max(salaries) if salaries else None
+                },
+                'demand_level': demand_level,
+                'top_skills': [{'skill': skill, 'importance': round(importance, 2)} for skill, importance in top_skills],
+                'top_locations': [{'location': loc, 'job_count': count} for loc, count in top_locations],
+                'analysis_date': datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting role market data for {role}: {e}")
+            return {
+                'role': role,
+                'job_count': 0,
+                'error': str(e)
+            }
+    
+    async def _get_market_overview(self, db: AsyncSession, time_period_days: int) -> Dict[str, Any]:
+        """Get general market overview statistics."""
+        try:
+            cutoff_date = datetime.utcnow() - timedelta(days=time_period_days)
+            
+            # Total job postings
+            total_jobs_query = select(func.count(JobPosting.id)).where(
+                JobPosting.posted_date >= cutoff_date,
+                JobPosting.is_active == True
+            )
+            total_jobs_result = await db.execute(total_jobs_query)
+            total_jobs = total_jobs_result.scalar() or 0
+            
+            # Average salary
+            avg_salary_query = select(func.avg(JobPosting.salary_max)).where(
+                JobPosting.posted_date >= cutoff_date,
+                JobPosting.salary_max.isnot(None),
+                JobPosting.salary_max > 0
+            )
+            avg_salary_result = await db.execute(avg_salary_query)
+            avg_salary = avg_salary_result.scalar()
+            
+            # Top companies by job postings
+            top_companies_query = select(
+                JobPosting.company,
+                func.count(JobPosting.id).label('job_count')
+            ).where(
+                JobPosting.posted_date >= cutoff_date,
+                JobPosting.is_active == True
+            ).group_by(JobPosting.company).order_by(func.count(JobPosting.id).desc()).limit(10)
+            
+            top_companies_result = await db.execute(top_companies_query)
+            top_companies = [
+                {'company': row.company, 'job_count': row.job_count}
+                for row in top_companies_result.fetchall()
+            ]
+            
+            return {
+                'total_job_postings': total_jobs,
+                'average_salary': round(avg_salary) if avg_salary else None,
+                'top_hiring_companies': top_companies,
+                'analysis_period_days': time_period_days,
+                'market_activity_level': 'high' if total_jobs > 1000 else 'medium' if total_jobs > 500 else 'low'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting market overview: {e}")
+            return {
+                'total_job_postings': 0,
+                'error': str(e)
+            }
+    
+    async def _analyze_skill_trend(self, db: AsyncSession, skill: str, time_period_days: int) -> Dict[str, Any]:
+        """Analyze trend for a specific skill."""
+        try:
+            cutoff_date = datetime.utcnow() - timedelta(days=time_period_days)
+            
+            # Get job postings mentioning this skill over time
+            query = select(JobPosting).where(
+                JobPosting.processed_skills.has_key(skill),
+                JobPosting.posted_date >= cutoff_date,
+                JobPosting.is_active == True
+            ).order_by(JobPosting.posted_date)
+            
+            result = await db.execute(query)
+            jobs = result.scalars().all()
+            
+            if not jobs:
+                return {
+                    'skill': skill,
+                    'trend': 'no_data',
+                    'job_count': 0,
+                    'growth_rate': 0.0
+                }
+            
+            # Group by week to analyze trend
+            weekly_counts = {}
+            for job in jobs:
+                week_start = job.posted_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                week_start = week_start - timedelta(days=week_start.weekday())
+                week_key = week_start.strftime('%Y-%W')
+                weekly_counts[week_key] = weekly_counts.get(week_key, 0) + 1
+            
+            # Calculate trend
+            weeks = sorted(weekly_counts.keys())
+            if len(weeks) < 2:
+                trend = 'stable'
+                growth_rate = 0.0
+            else:
+                counts = [weekly_counts[week] for week in weeks]
+                # Simple linear regression to determine trend
+                x = np.arange(len(counts))
+                slope, _, _, _, _ = stats.linregress(x, counts)
+                
+                if slope > 0.1:
+                    trend = 'growing'
+                elif slope < -0.1:
+                    trend = 'declining'
+                else:
+                    trend = 'stable'
+                
+                growth_rate = slope
+            
+            return {
+                'skill': skill,
+                'trend': trend,
+                'job_count': len(jobs),
+                'growth_rate': round(growth_rate, 3),
+                'weekly_data': weekly_counts
+            }
+            
+        except Exception as e:
+            logger.error(f"Error analyzing skill trend for {skill}: {e}")
+            return {
+                'skill': skill,
+                'trend': 'error',
+                'error': str(e)
+            }
+    
+    async def _analyze_geographic_trends(self, db: AsyncSession, skills: List[str],
+                                       locations: List[str], time_period_days: int) -> Dict[str, Any]:
+        """Analyze geographic trends for skills and locations."""
+        try:
+            cutoff_date = datetime.utcnow() - timedelta(days=time_period_days)
+            geographic_data = {}
+            
+            for location in locations:
+                location_data = {
+                    'location': location,
+                    'total_jobs': 0,
+                    'skill_demand': {},
+                    'avg_salary': None
+                }
+                
+                # Get jobs in this location
+                query = select(JobPosting).where(
+                    JobPosting.location.ilike(f"%{location}%"),
+                    JobPosting.posted_date >= cutoff_date,
+                    JobPosting.is_active == True
+                )
+                
+                result = await db.execute(query)
+                location_jobs = result.scalars().all()
+                
+                location_data['total_jobs'] = len(location_jobs)
+                
+                # Calculate average salary for location
+                salaries = [job.salary_max for job in location_jobs if job.salary_max and job.salary_max > 0]
+                if salaries:
+                    location_data['avg_salary'] = round(sum(salaries) / len(salaries))
+                
+                # Analyze skill demand in this location
+                for skill in skills:
+                    skill_jobs = [
+                        job for job in location_jobs
+                        if job.processed_skills and skill in job.processed_skills
+                    ]
+                    location_data['skill_demand'][skill] = {
+                        'job_count': len(skill_jobs),
+                        'demand_ratio': len(skill_jobs) / len(location_jobs) if location_jobs else 0
+                    }
+                
+                geographic_data[location] = location_data
+            
+            return geographic_data
+            
+        except Exception as e:
+            logger.error(f"Error analyzing geographic trends: {e}")
+            return {}
+    
+    async def _compare_skills(self, db: AsyncSession, skills: List[str], time_period_days: int) -> Dict[str, Any]:
+        """Compare multiple skills across various metrics."""
+        try:
+            cutoff_date = datetime.utcnow() - timedelta(days=time_period_days)
+            comparison_data = {
+                'skills_compared': skills,
+                'metrics': {
+                    'job_demand': {},
+                    'salary_potential': {},
+                    'growth_trend': {},
+                    'market_share': {}
+                }
+            }
+            
+            total_jobs_query = select(func.count(JobPosting.id)).where(
+                JobPosting.posted_date >= cutoff_date,
+                JobPosting.is_active == True
+            )
+            total_jobs_result = await db.execute(total_jobs_query)
+            total_jobs = total_jobs_result.scalar() or 1
+            
+            for skill in skills:
+                # Job demand
+                skill_jobs_query = select(func.count(JobPosting.id)).where(
+                    JobPosting.processed_skills.has_key(skill),
+                    JobPosting.posted_date >= cutoff_date,
+                    JobPosting.is_active == True
+                )
+                skill_jobs_result = await db.execute(skill_jobs_query)
+                skill_job_count = skill_jobs_result.scalar() or 0
+                
+                comparison_data['metrics']['job_demand'][skill] = skill_job_count
+                comparison_data['metrics']['market_share'][skill] = round(skill_job_count / total_jobs, 4)
+                
+                # Salary potential
+                salary_query = select(func.avg(JobPosting.salary_max)).where(
+                    JobPosting.processed_skills.has_key(skill),
+                    JobPosting.posted_date >= cutoff_date,
+                    JobPosting.salary_max.isnot(None),
+                    JobPosting.salary_max > 0
+                )
+                salary_result = await db.execute(salary_query)
+                avg_salary = salary_result.scalar()
+                
+                comparison_data['metrics']['salary_potential'][skill] = round(avg_salary) if avg_salary else None
+                
+                # Growth trend (simplified)
+                recent_jobs_query = select(func.count(JobPosting.id)).where(
+                    JobPosting.processed_skills.has_key(skill),
+                    JobPosting.posted_date >= datetime.utcnow() - timedelta(days=30),
+                    JobPosting.is_active == True
+                )
+                recent_jobs_result = await db.execute(recent_jobs_query)
+                recent_count = recent_jobs_result.scalar() or 0
+                
+                older_jobs_query = select(func.count(JobPosting.id)).where(
+                    JobPosting.processed_skills.has_key(skill),
+                    JobPosting.posted_date >= cutoff_date,
+                    JobPosting.posted_date < datetime.utcnow() - timedelta(days=30),
+                    JobPosting.is_active == True
+                )
+                older_jobs_result = await db.execute(older_jobs_query)
+                older_count = older_jobs_result.scalar() or 0
+                
+                if older_count > 0:
+                    growth_rate = (recent_count - older_count) / older_count
+                else:
+                    growth_rate = 0.0
+                
+                comparison_data['metrics']['growth_trend'][skill] = round(growth_rate, 3)
+            
+            # Add rankings
+            comparison_data['rankings'] = {
+                'most_in_demand': sorted(
+                    comparison_data['metrics']['job_demand'].items(),
+                    key=lambda x: x[1], reverse=True
+                ),
+                'highest_salary': sorted(
+                    [(k, v) for k, v in comparison_data['metrics']['salary_potential'].items() if v],
+                    key=lambda x: x[1], reverse=True
+                ),
+                'fastest_growing': sorted(
+                    comparison_data['metrics']['growth_trend'].items(),
+                    key=lambda x: x[1], reverse=True
+                )
+            }
+            
+            return comparison_data
+            
+        except Exception as e:
+            logger.error(f"Error comparing skills: {e}")
+            return {}

@@ -17,7 +17,7 @@ from app.services.job_scrapers.base_job_scraper import JobSearchParams
 from app.services.job_analysis_service import JobAnalysisService
 from app.services.market_trend_analyzer import MarketTrendAnalyzer
 from app.repositories.job import JobRepository
-from app.core.exceptions import ProcessingError
+from app.core.exceptions import ServiceException as ProcessingError
 
 logger = logging.getLogger(__name__)
 

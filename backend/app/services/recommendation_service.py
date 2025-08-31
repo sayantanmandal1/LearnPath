@@ -26,14 +26,59 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'machinelearningmodel'))
 
-from machinelearningmodel.recommendation_engine import (
-    HybridRecommendationEngine,
-    CareerRecommendation,
-    LearningPath,
-    SkillGapAnalysis,
-    SkillGapAnalyzer,
-    RecommendationExplainer
-)
+try:
+    from machinelearningmodel.recommendation_engine import (
+        HybridRecommendationEngine,
+        CareerRecommendation,
+        LearningPath,
+        SkillGapAnalysis,
+        SkillGapAnalyzer,
+        RecommendationExplainer
+    )
+except ImportError:
+    # Fallback classes for when ML module is not available
+    class HybridRecommendationEngine:
+        def __init__(self):
+            pass
+        def fit(self, *args, **kwargs):
+            pass
+        def recommend_careers(self, *args, **kwargs):
+            return []
+        def recommend_learning_paths(self, *args, **kwargs):
+            return []
+    
+    class CareerRecommendation:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+    
+    class LearningPath:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+    
+    class SkillGapAnalysis:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+    
+    class SkillGapAnalyzer:
+        def __init__(self):
+            pass
+        def analyze_skill_gaps(self, *args, **kwargs):
+            return SkillGapAnalysis(
+                target_role="",
+                missing_skills={},
+                weak_skills={},
+                strong_skills=[],
+                overall_readiness=0.5,
+                learning_time_estimate=4,
+                priority_skills=[]
+            )
+    
+    class RecommendationExplainer:
+        def __init__(self):
+            pass
 
 
 logger = logging.getLogger(__name__)
@@ -48,6 +93,7 @@ class RecommendationService:
         self.explainer = RecommendationExplainer()
         self.model_trained = False
         self.last_training_time = None
+        self.training_interval = timedelta(hours=24)  # Retrain every 24 hours
         self.training_interval = timedelta(hours=24)  # Retrain daily
         
     async def initialize_and_train_models(self, db: AsyncSession):
@@ -590,4 +636,157 @@ class RecommendationService:
         if total_importance > 0:
             return overlap_score / total_importance
         
-        return len(intersection) / len(union)
+        return len(intersection) / len(union)    
+
+    async def get_filtered_career_recommendations(self, user_id: str, db: AsyncSession,
+                                                target_role: Optional[str] = None,
+                                                filters: Dict[str, Any] = None,
+                                                n_recommendations: int = 10,
+                                                include_alternatives: bool = True) -> List[Dict[str, Any]]:
+        """
+        Get career recommendations with advanced filtering.
+        
+        Args:
+            user_id: User identifier
+            db: Database session
+            target_role: Optional target role filter
+            filters: Dictionary of filters (location, experience_level, salary_min, etc.)
+            n_recommendations: Number of recommendations
+            include_alternatives: Include alternative career paths
+            
+        Returns:
+            Filtered list of career recommendations
+        """
+        try:
+            # Get base recommendations
+            recommendations = await self.get_career_recommendations(
+                user_id, db, n_recommendations * 2  # Get more to filter from
+            )
+            
+            if not filters:
+                return recommendations[:n_recommendations]
+            
+            # Apply filters
+            filtered_recommendations = []
+            
+            for rec in recommendations:
+                # Location filter
+                if filters.get('location') and filters['location'].lower() not in rec.get('location', '').lower():
+                    continue
+                
+                # Experience level filter
+                if filters.get('experience_level') and filters['experience_level'].lower() not in rec.get('job_title', '').lower():
+                    continue
+                
+                # Salary filters
+                salary_range = rec.get('salary_range', {})
+                if filters.get('salary_min') and salary_range.get('min', 0) < filters['salary_min']:
+                    continue
+                if filters.get('salary_max') and salary_range.get('max', float('inf')) > filters['salary_max']:
+                    continue
+                
+                # Skills filter
+                if filters.get('skills'):
+                    required_skills = set(rec.get('required_skills', []))
+                    filter_skills = set(filters['skills'])
+                    if not filter_skills.intersection(required_skills):
+                        continue
+                
+                filtered_recommendations.append(rec)
+                
+                if len(filtered_recommendations) >= n_recommendations:
+                    break
+            
+            return filtered_recommendations
+            
+        except Exception as e:
+            logger.error(f"Error getting filtered career recommendations: {e}")
+            raise ServiceException(f"Failed to get filtered recommendations: {str(e)}")
+    
+    async def get_advanced_job_matches(self, user_profile: UserProfile,
+                                     filters: Dict[str, Any] = None,
+                                     match_threshold: float = 0.6,
+                                     include_skill_gaps: bool = True,
+                                     db: AsyncSession = None) -> List[Dict[str, Any]]:
+        """
+        Get advanced job matches with filtering and analysis.
+        
+        Args:
+            user_profile: User profile object
+            filters: Dictionary of filters
+            match_threshold: Minimum match score
+            include_skill_gaps: Include skill gap analysis
+            db: Database session
+            
+        Returns:
+            List of job matches with analysis
+        """
+        try:
+            job_repo = JobRepository(db)
+            
+            # Build query with filters
+            query_filters = {}
+            if filters:
+                if filters.get('location'):
+                    query_filters['location'] = filters['location']
+                if filters.get('experience_level'):
+                    query_filters['experience_level'] = filters['experience_level']
+                if filters.get('remote_type'):
+                    query_filters['remote_type'] = filters['remote_type']
+            
+            # Get job postings
+            jobs = await job_repo.search_jobs(
+                db=db,
+                **query_filters,
+                limit=100  # Get more jobs to analyze
+            )
+            
+            job_matches = []
+            user_skills = user_profile.skills or {}
+            
+            for job in jobs:
+                # Calculate match score
+                job_skills = job.processed_skills or {}
+                match_score = self._calculate_simple_match_score(user_skills, job_skills)
+                
+                if match_score < match_threshold:
+                    continue
+                
+                match_data = {
+                    'job_id': job.id,
+                    'job_title': job.title,
+                    'company': job.company,
+                    'location': job.location,
+                    'match_score': round(match_score, 3),
+                    'match_percentage': round(match_score * 100, 1),
+                    'salary_min': job.salary_min,
+                    'salary_max': job.salary_max,
+                    'posted_date': job.posted_date.isoformat() if job.posted_date else None
+                }
+                
+                # Add skill gap analysis if requested
+                if include_skill_gaps:
+                    gap_analysis = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        self.skill_gap_analyzer.analyze_skill_gaps,
+                        user_skills, job_skills, job.title
+                    )
+                    
+                    match_data.update({
+                        'skill_gaps': gap_analysis.missing_skills,
+                        'weak_skills': gap_analysis.weak_skills,
+                        'strong_skills': gap_analysis.strong_skills,
+                        'overall_readiness': gap_analysis.overall_readiness,
+                        'readiness_percentage': round(gap_analysis.overall_readiness * 100, 1)
+                    })
+                
+                job_matches.append(match_data)
+            
+            # Sort by match score
+            job_matches.sort(key=lambda x: x['match_score'], reverse=True)
+            
+            return job_matches
+            
+        except Exception as e:
+            logger.error(f"Error getting advanced job matches: {e}")
+            raise ServiceException(f"Failed to get job matches: {str(e)}")

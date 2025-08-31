@@ -2,7 +2,8 @@
 
 import os
 from typing import Optional
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field
 
 
 class ExternalAPIConfig(BaseSettings):
@@ -46,9 +47,11 @@ class ExternalAPIConfig(BaseSettings):
     respect_robots_txt: bool = Field(True, env="RESPECT_ROBOTS_TXT")
     user_agent: str = Field("AI-Career-Recommender/1.0", env="USER_AGENT")
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": False,
+        "extra": "ignore"
+    }
 
 
 # Global configuration instance

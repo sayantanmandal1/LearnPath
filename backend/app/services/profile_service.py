@@ -965,4 +965,208 @@ class UserProfileService:
                     'description': f'Your profile data is {days_since_update} days old. Consider refreshing it.'
                 })
         
+        return recommendations 
+   
+    def calculate_profile_completeness(self, profile: 'UserProfile') -> float:
+        """Calculate profile completeness score (0.0 to 1.0)."""
+        try:
+            score = 0.0
+            max_score = 10.0  # Total possible points
+            
+            # Basic information (2 points)
+            if profile.current_role:
+                score += 0.5
+            if profile.dream_job:
+                score += 0.5
+            if profile.experience_years is not None:
+                score += 0.5
+            if profile.location:
+                score += 0.5
+            
+            # Skills (3 points)
+            if profile.skills:
+                skill_count = len(profile.skills)
+                if skill_count >= 10:
+                    score += 3.0
+                elif skill_count >= 5:
+                    score += 2.0
+                elif skill_count >= 1:
+                    score += 1.0
+            
+            # Resume data (2 points)
+            if profile.resume_data:
+                score += 2.0
+            
+            # External platform data (3 points)
+            platform_data = profile.platform_data or {}
+            if platform_data.get('github'):
+                score += 1.0
+            if platform_data.get('leetcode'):
+                score += 1.0
+            if platform_data.get('linkedin'):
+                score += 1.0
+            
+            return min(score / max_score, 1.0)
+            
+        except Exception as e:
+            logger.error(f"Error calculating profile completeness: {e}")
+            return 0.0
+    
+    def get_missing_profile_elements(self, profile: 'UserProfile') -> List[str]:
+        """Get list of missing profile elements."""
+        try:
+            missing = []
+            
+            if not profile.current_role:
+                missing.append("current_role")
+            if not profile.dream_job:
+                missing.append("dream_job")
+            if profile.experience_years is None:
+                missing.append("experience_years")
+            if not profile.location:
+                missing.append("location")
+            if not profile.skills or len(profile.skills) < 5:
+                missing.append("skills")
+            if not profile.resume_data:
+                missing.append("resume")
+            
+            platform_data = profile.platform_data or {}
+            if not platform_data.get('github'):
+                missing.append("github_profile")
+            if not platform_data.get('leetcode'):
+                missing.append("leetcode_profile")
+            if not platform_data.get('linkedin'):
+                missing.append("linkedin_profile")
+            
+            return missing
+            
+        except Exception as e:
+            logger.error(f"Error getting missing profile elements: {e}")
+            return []
+    
+    async def get_profile_analytics(self, db: AsyncSession, user_id: str) -> Dict[str, Any]:
+        """Get comprehensive profile analytics."""
+        try:
+            from app.repositories.profile import ProfileRepository
+            profile_repo = ProfileRepository()
+            
+            profile = await profile_repo.get_by_user_id(db, user_id)
+            if not profile:
+                raise Exception("Profile not found")
+            
+            # Calculate completeness
+            completeness_score = self.calculate_profile_completeness(profile)
+            missing_elements = self.get_missing_profile_elements(profile)
+            
+            # Skill analysis
+            skills = profile.skills or {}
+            skill_analysis = {
+                'total_skills': len(skills),
+                'top_skills': sorted(skills.items(), key=lambda x: x[1], reverse=True)[:5],
+                'skill_categories': self._categorize_skills(list(skills.keys())),
+                'average_confidence': sum(skills.values()) / len(skills) if skills else 0
+            }
+            
+            # Data freshness
+            data_freshness = {
+                'last_updated': profile.data_last_updated.isoformat() if profile.data_last_updated else None,
+                'days_since_update': (datetime.utcnow() - profile.data_last_updated).days if profile.data_last_updated else None,
+                'needs_refresh': (
+                    not profile.data_last_updated or 
+                    (datetime.utcnow() - profile.data_last_updated).days > 30
+                )
+            }
+            
+            # Platform coverage
+            platform_data = profile.platform_data or {}
+            platform_coverage = {
+                'connected_platforms': list(platform_data.keys()),
+                'platform_count': len(platform_data),
+                'missing_platforms': [
+                    platform for platform in ['github', 'leetcode', 'linkedin']
+                    if platform not in platform_data
+                ]
+            }
+            
+            return {
+                'profile_completeness': {
+                    'score': completeness_score,
+                    'percentage': round(completeness_score * 100, 1),
+                    'missing_elements': missing_elements
+                },
+                'skill_analysis': skill_analysis,
+                'data_freshness': data_freshness,
+                'platform_coverage': platform_coverage,
+                'recommendations': self._get_profile_improvement_recommendations(
+                    completeness_score, missing_elements, skill_analysis
+                )
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting profile analytics: {e}")
+            raise Exception(f"Failed to get profile analytics: {str(e)}")
+    
+    def _categorize_skills(self, skills: List[str]) -> Dict[str, List[str]]:
+        """Categorize skills into different categories."""
+        categories = {
+            'programming_languages': [],
+            'frameworks_libraries': [],
+            'databases': [],
+            'cloud_platforms': [],
+            'tools': [],
+            'soft_skills': [],
+            'other': []
+        }
+        
+        # Simple categorization based on skill names
+        for skill in skills:
+            skill_lower = skill.lower()
+            
+            if any(lang in skill_lower for lang in ['python', 'java', 'javascript', 'c++', 'c#', 'go', 'rust', 'php', 'ruby']):
+                categories['programming_languages'].append(skill)
+            elif any(fw in skill_lower for fw in ['react', 'angular', 'vue', 'django', 'flask', 'spring', 'express']):
+                categories['frameworks_libraries'].append(skill)
+            elif any(db in skill_lower for db in ['sql', 'mysql', 'postgresql', 'mongodb', 'redis', 'elasticsearch']):
+                categories['databases'].append(skill)
+            elif any(cloud in skill_lower for cloud in ['aws', 'azure', 'gcp', 'docker', 'kubernetes']):
+                categories['cloud_platforms'].append(skill)
+            elif any(tool in skill_lower for tool in ['git', 'jenkins', 'terraform', 'ansible']):
+                categories['tools'].append(skill)
+            elif any(soft in skill_lower for soft in ['communication', 'leadership', 'teamwork', 'problem solving']):
+                categories['soft_skills'].append(skill)
+            else:
+                categories['other'].append(skill)
+        
+        return {k: v for k, v in categories.items() if v}  # Remove empty categories
+    
+    def _get_profile_improvement_recommendations(self, completeness_score: float,
+                                               missing_elements: List[str],
+                                               skill_analysis: Dict[str, Any]) -> List[str]:
+        """Get recommendations for improving profile."""
+        recommendations = []
+        
+        if completeness_score < 0.5:
+            recommendations.append("Your profile is incomplete. Focus on adding basic information first.")
+        
+        if 'current_role' in missing_elements:
+            recommendations.append("Add your current job role to help with better recommendations.")
+        
+        if 'dream_job' in missing_elements:
+            recommendations.append("Specify your dream job to get targeted career recommendations.")
+        
+        if 'skills' in missing_elements or skill_analysis['total_skills'] < 5:
+            recommendations.append("Add more skills to your profile. Aim for at least 10 relevant skills.")
+        
+        if 'resume' in missing_elements:
+            recommendations.append("Upload your resume to automatically extract skills and experience.")
+        
+        if 'github_profile' in missing_elements:
+            recommendations.append("Connect your GitHub profile to showcase your coding projects.")
+        
+        if 'linkedin_profile' in missing_elements:
+            recommendations.append("Connect your LinkedIn profile for professional network insights.")
+        
+        if skill_analysis['average_confidence'] < 0.6:
+            recommendations.append("Consider updating your skill confidence levels or adding more evidence.")
+        
         return recommendations

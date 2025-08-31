@@ -393,12 +393,12 @@ async def get_pipeline_status(current_user = Depends(get_current_user)):
 
 @router.post("/pipeline/run-manual")
 async def run_manual_collection(
+    background_tasks: BackgroundTasks,
+    current_user = Depends(get_current_user),
     keywords: str = Query(..., description="Search keywords"),
     location: Optional[str] = Query(None, description="Target location"),
     platforms: List[str] = Query(["linkedin", "indeed"], description="Platforms to scrape"),
-    limit: int = Query(100, ge=1, le=500, description="Maximum jobs to collect"),
-    background_tasks: BackgroundTasks,
-    current_user = Depends(get_current_user)
+    limit: int = Query(100, ge=1, le=500, description="Maximum jobs to collect")
 ):
     """
     Run manual data collection

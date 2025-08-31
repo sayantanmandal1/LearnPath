@@ -15,7 +15,7 @@ from .linkedin_jobs_scraper import LinkedInJobsScraper
 from .glassdoor_scraper import GlassdoorScraper
 from app.repositories.job import JobRepository
 from app.schemas.job import JobPostingCreate
-from app.core.exceptions import ExternalAPIError
+from app.core.exceptions import ExternalServiceError as ExternalAPIError
 
 
 logger = logging.getLogger(__name__)
