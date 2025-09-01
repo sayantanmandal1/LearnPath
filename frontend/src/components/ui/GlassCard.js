@@ -6,61 +6,69 @@ import { motion } from 'framer-motion';
 const GlassCard = ({ 
   children, 
   className = '', 
-  hover = true, 
+  hover = false, 
   glow = false,
-  gradient = false,
   onClick,
   ...props 
 }) => {
   const baseClasses = `
-    backdrop-blur-xl bg-white/10 dark:bg-black/20 
-    border border-white/20 dark:border-white/10
-    rounded-2xl shadow-xl
-    ${glow ? 'shadow-glow' : ''}
-    ${gradient ? 'bg-gradient-to-br from-white/20 to-white/5 dark:from-black/20 dark:to-black/5' : ''}
-    ${onClick ? 'cursor-pointer' : ''}
+    backdrop-blur-xl 
+    bg-white/10 
+    dark:bg-black/20 
+    border 
+    border-white/20 
+    dark:border-white/10 
+    rounded-2xl 
+    shadow-xl
+    transition-all 
+    duration-300
   `;
 
-  const hoverAnimation = hover ? {
-    scale: 1.02,
-    y: -5,
-    boxShadow: glow 
-      ? '0 20px 40px rgba(14, 165, 233, 0.3), 0 0 60px rgba(14, 165, 233, 0.2)'
-      : '0 20px 40px rgba(0, 0, 0, 0.1)',
-    transition: {
-      type: "spring",
-      stiffness: 300,
-      damping: 20
-    }
-  } : {};
+  const hoverClasses = hover ? `
+    hover:scale-105 
+    hover:-translate-y-2 
+    hover:shadow-2xl 
+    hover:bg-white/20 
+    dark:hover:bg-black/30
+    cursor-pointer
+  ` : '';
 
-  const tapAnimation = onClick ? {
-    scale: 0.98,
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 25
-    }
-  } : {};
+  const glowClasses = glow ? `
+    shadow-glow 
+    hover:shadow-glow-lg
+  ` : '';
+
+  const combinedClasses = `${baseClasses} ${hoverClasses} ${glowClasses} ${className}`.trim();
+
+  if (hover) {
+    return (
+      <motion.div
+        whileHover={{ 
+          scale: 1.02,
+          y: -4
+        }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 300, 
+          damping: 20 
+        }}
+        className={combinedClasses}
+        onClick={onClick}
+        {...props}
+      >
+        {children}
+      </motion.div>
+    );
+  }
 
   return (
-    <motion.div
-      className={`${baseClasses} ${className}`}
-      whileHover={hoverAnimation}
-      whileTap={tapAnimation}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        type: "spring",
-        stiffness: 300,
-        damping: 30,
-        delay: 0.1
-      }}
+    <div 
+      className={combinedClasses}
       onClick={onClick}
       {...props}
     >
       {children}
-    </motion.div>
+    </div>
   );
 };
 

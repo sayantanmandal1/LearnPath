@@ -27,6 +27,8 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: 16px;
+  overflow-x: hidden;
 }
 
 /* Custom scrollbar */
@@ -170,7 +172,16 @@ body {
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, #0ea5e9, #d946ef, #f97316);
+  background: linear-gradient(135deg, #a855f7, #c084fc, #d8b4fe);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-shift 3s ease-in-out infinite;
+}
+
+.dark .gradient-text {
+  background: linear-gradient(135deg, #facc15, #fde047, #fef08a);
   background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -217,7 +228,7 @@ body {
 
 /* Custom components */
 .btn-primary {
-  @apply bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-medium py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:ring-opacity-50;
+  @apply bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 dark:from-accent-500 dark:to-accent-600 dark:hover:from-accent-600 dark:hover:to-accent-700 text-white font-medium py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:focus:ring-accent-500 focus:ring-opacity-50;
 }
 
 .btn-secondary {
@@ -225,7 +236,7 @@ body {
 }
 
 .btn-ghost {
-  @apply text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 font-medium py-3 px-6 rounded-xl transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:ring-opacity-50;
+  @apply text-primary-500 dark:text-accent-400 hover:bg-primary-50 dark:hover:bg-accent-900/20 font-medium py-3 px-6 rounded-xl transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:focus:ring-accent-500 focus:ring-opacity-50;
 }
 
 .input-field {
@@ -252,10 +263,13 @@ body {
 }
 
 /* Dark mode adjustments */
-@media (prefers-color-scheme: dark) {
-  body {
-    background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
-  }
+.dark body {
+  background-color: #0f172a;
+}
+
+/* Light mode background */
+body {
+  background-color: #ffffff;
 }
 
 /* Print styles */

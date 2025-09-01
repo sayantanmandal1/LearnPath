@@ -67,7 +67,7 @@ const AnimatedBackground = ({ variant = 'particles', className = '' }) => {
   const createWaveAnimation = (container) => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 1200 320');
-    svg.className = 'absolute inset-0 w-full h-full';
+    svg.setAttribute('class', 'absolute inset-0 w-full h-full');
     
     const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path1.setAttribute('fill', 'url(#gradient1)');
@@ -179,7 +179,7 @@ const AnimatedBackground = ({ variant = 'particles', className = '' }) => {
 
     // Create SVG for connections
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.className = 'absolute inset-0 w-full h-full pointer-events-none';
+    svg.setAttribute('class', 'absolute inset-0 w-full h-full pointer-events-none');
     container.appendChild(svg);
 
     // Create connections between nearby nodes

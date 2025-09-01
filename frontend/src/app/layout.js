@@ -1,10 +1,6 @@
-'use client';
-
 import { Inter, Poppins } from 'next/font/google';
 import './globals.css';
-import { AuthProvider } from '../contexts/AuthContext';
-import { Toaster } from 'react-hot-toast';
-import Navbar from '../components/layout/Navbar';
+import ClientLayout from '../components/layout/ClientLayout';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -79,47 +75,13 @@ export default function RootLayout({ children }) {
     <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
       <head>
         <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        <link rel="manifest" href="/site.webmanifest" />
         <meta name="theme-color" content="#0ea5e9" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
       </head>
-      <body className={`${inter.className} antialiased bg-dark-900 text-white overflow-x-hidden`}>
-        <AuthProvider>
-          <div className="relative min-h-screen">
-            <Navbar />
-            <main className="relative z-10">
-              {children}
-            </main>
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: 'rgba(0, 0, 0, 0.8)',
-                  color: '#fff',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '12px',
-                },
-                success: {
-                  iconTheme: {
-                    primary: '#10b981',
-                    secondary: '#fff',
-                  },
-                },
-                error: {
-                  iconTheme: {
-                    primary: '#ef4444',
-                    secondary: '#fff',
-                  },
-                },
-              }}
-            />
-          </div>
-        </AuthProvider>
+      <body className={`${inter.className} antialiased bg-white dark:bg-gray-900 text-gray-900 dark:text-white overflow-x-hidden transition-colors duration-300`}>
+        <ClientLayout>
+          {children}
+        </ClientLayout>
       </body>
     </html>
   );

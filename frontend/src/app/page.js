@@ -1,31 +1,34 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import AnimatedButton from '../components/ui/AnimatedButton';
-import GlassCard from '../components/ui/GlassCard';
-import AnimatedBackground from '../components/ui/AnimatedBackground';
 import Link from 'next/link';
 import {
   SparklesIcon,
   RocketLaunchIcon,
   ChartBarIcon,
-  AcademicCapIcon,
-  BriefcaseIcon,
   UserGroupIcon,
   CheckCircleIcon,
   ArrowRightIcon,
-  PlayIcon
+  PlayIcon,
+  SunIcon,
+  MoonIcon,
+  Bars3Icon,
+  XMarkIcon,
+  CpuChipIcon,
+  LightBulbIcon,
+  TrophyIcon
 } from '@heroicons/react/24/outline';
-import anime from 'animejs';
+
+
 
 const HomePage = () => {
   const { user } = useAuth();
   const router = useRouter();
-  const heroRef = useRef(null);
-  const statsRef = useRef(null);
+  const [darkMode, setDarkMode] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -34,217 +37,269 @@ const HomePage = () => {
   }, [user, router]);
 
   useEffect(() => {
-    // Hero section animations
-    anime({
-      targets: '.hero-element',
-      translateY: [50, 0],
-      opacity: [0, 1],
-      duration: 1000,
-      delay: anime.stagger(200),
-      easing: 'easeOutExpo'
-    });
-
-    // Stats counter animation
-    anime({
-      targets: '.stat-number',
-      innerHTML: (el) => [0, parseInt(el.getAttribute('data-count'))],
-      duration: 2000,
-      delay: 1000,
-      easing: 'easeOutExpo',
-      round: 1
-    });
-
-    // Feature cards animation
-    anime({
-      targets: '.feature-card',
-      scale: [0.8, 1],
-      opacity: [0, 1],
-      duration: 800,
-      delay: anime.stagger(100, { start: 1500 }),
-      easing: 'easeOutBack'
-    });
+    // Check for saved theme preference or default to light mode
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      setDarkMode(true);
+      document.documentElement.classList.add('dark');
+    }
   }, []);
+
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+    if (!darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
 
   const features = [
     {
-      icon: SparklesIcon,
-      title: 'AI-Powered Matching',
-      description: 'Advanced machine learning algorithms analyze your skills and match you with perfect career opportunities.',
-      gradient: 'from-blue-500 to-cyan-500'
+      icon: CpuChipIcon,
+      title: 'AI-Powered Analysis',
+      description: 'Advanced machine learning algorithms analyze your skills, experience, and career goals to provide personalized recommendations.',
+      gradient: 'from-primary-500 to-primary-600'
     },
     {
       icon: ChartBarIcon,
-      title: 'Career Analytics',
-      description: 'Comprehensive insights into your career progression with detailed analytics and market trends.',
-      gradient: 'from-purple-500 to-pink-500'
+      title: 'Career Insights',
+      description: 'Get detailed analytics on market trends, salary expectations, and growth opportunities in your field.',
+      gradient: 'from-accent-500 to-accent-600'
     },
     {
-      icon: AcademicCapIcon,
-      title: 'Personalized Learning',
-      description: 'Custom learning paths designed to bridge your skill gaps and accelerate your career growth.',
-      gradient: 'from-orange-500 to-red-500'
+      icon: LightBulbIcon,
+      title: 'Smart Recommendations',
+      description: 'Receive tailored job suggestions, skill development paths, and career advancement strategies.',
+      gradient: 'from-primary-600 to-accent-500'
     },
     {
-      icon: BriefcaseIcon,
-      title: 'Job Recommendations',
-      description: 'Get tailored job recommendations based on your profile, preferences, and career goals.',
-      gradient: 'from-green-500 to-emerald-500'
-    },
-    {
-      icon: UserGroupIcon,
-      title: 'Network Building',
-      description: 'Connect with industry professionals and expand your network for better opportunities.',
-      gradient: 'from-indigo-500 to-blue-500'
-    },
-    {
-      icon: RocketLaunchIcon,
-      title: 'Career Acceleration',
-      description: 'Fast-track your career with strategic guidance and actionable insights from AI analysis.',
-      gradient: 'from-pink-500 to-rose-500'
+      icon: TrophyIcon,
+      title: 'Success Tracking',
+      description: 'Monitor your progress with detailed metrics and celebrate your career milestones.',
+      gradient: 'from-accent-600 to-primary-500'
     }
   ];
 
   const stats = [
-    { label: 'Active Users', value: '50000', suffix: '+' },
-    { label: 'Job Matches', value: '1200000', suffix: '+' },
-    { label: 'Success Rate', value: '94', suffix: '%' },
-    { label: 'Companies', value: '5000', suffix: '+' }
-  ];
-
-  const testimonials = [
-    {
-      name: 'Sarah Chen',
-      role: 'Software Engineer at Google',
-      image: '/testimonials/sarah.jpg',
-      content: 'CareerAI helped me transition from marketing to tech. The personalized learning path was incredible!'
-    },
-    {
-      name: 'Marcus Johnson',
-      role: 'Data Scientist at Microsoft',
-      image: '/testimonials/marcus.jpg',
-      content: 'The AI recommendations were spot-on. I found my dream job within 2 weeks of using the platform.'
-    },
-    {
-      name: 'Emily Rodriguez',
-      role: 'Product Manager at Stripe',
-      image: '/testimonials/emily.jpg',
-      content: 'The career analytics gave me insights I never had before. It completely changed my approach to job hunting.'
-    }
+    { label: 'Active Users', value: '50K+', description: 'Professionals trust our platform' },
+    { label: 'Job Matches', value: '1.2M+', description: 'Successful career connections' },
+    { label: 'Success Rate', value: '94%', description: 'Users find better opportunities' },
+    { label: 'Companies', value: '5K+', description: 'Partner organizations' }
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 relative overflow-hidden">
-      <AnimatedBackground variant="neural" />
-      
-      {/* Hero Section */}
-      <section className="relative z-10 min-h-screen flex items-center justify-center px-4 py-20">
-        <div className="max-w-7xl mx-auto text-center">
-          <motion.div
-            className="hero-element mb-8"
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <div className="inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 mb-6">
-              <SparklesIcon className="w-5 h-5 text-primary-400 mr-2" />
-              <span className="text-sm text-gray-300">Powered by Advanced AI</span>
+    <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <h1 className="text-2xl font-bold gradient-text">CareerAI</h1>
+              </div>
             </div>
-            
-            <h1 className="text-6xl md:text-8xl font-bold mb-6 gradient-text font-display">
-              Transform Your
-              <br />
-              <span className="animate-typewriter">Career Journey</span>
-            </h1>
-            
-            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Discover your perfect career path with AI-powered recommendations, 
-              personalized learning, and data-driven insights that accelerate your professional growth.
-            </p>
-          </motion.div>
 
-          <motion.div
-            className="hero-element flex flex-col sm:flex-row gap-4 justify-center items-center mb-12"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-          >
-            <Link href="/auth/signup">
-              <AnimatedButton
-                variant="primary"
-                size="lg"
-                glow
-                gradient
-                icon={<RocketLaunchIcon className="w-6 h-6" />}
+            {/* Desktop Navigation */}
+            <div className="hidden md:block">
+              <div className="ml-10 flex items-baseline space-x-4">
+                <Link href="#features" className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-accent-400 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                  Features
+                </Link>
+                <Link href="#how-it-works" className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-accent-400 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                  How It Works
+                </Link>
+                <Link href="#pricing" className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-accent-400 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                  Pricing
+                </Link>
+              </div>
+            </div>
+
+            {/* Right side buttons */}
+            <div className="hidden md:flex items-center space-x-4">
+              <button
+                onClick={toggleDarkMode}
+                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
-                Start Your Journey
-              </AnimatedButton>
-            </Link>
-            
-            <AnimatedButton
-              variant="glass"
-              size="lg"
-              icon={<PlayIcon className="w-6 h-6" />}
-            >
-              Watch Demo
-            </AnimatedButton>
-          </motion.div>
+                {darkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+              </button>
+              <Link href="/login" className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-accent-400 px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                Sign In
+              </Link>
+              <Link href="/signup" className="bg-primary-600 dark:bg-accent-500 hover:bg-primary-700 dark:hover:bg-accent-600 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg">
+                Get Started
+              </Link>
+            </div>
 
-          {/* Stats */}
-          <motion.div
-            ref={statsRef}
-            className="hero-element grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-          >
-            {stats.map((stat, index) => (
-              <GlassCard key={index} className="p-6 text-center">
-                <div className="text-3xl md:text-4xl font-bold text-white mb-2">
-                  <span className="stat-number" data-count={stat.value}>0</span>
-                  <span className="text-primary-400">{stat.suffix}</span>
+            {/* Mobile menu button */}
+            <div className="md:hidden flex items-center space-x-2">
+              <button
+                onClick={toggleDarkMode}
+                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+              >
+                {darkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+              </button>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+              >
+                {mobileMenuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              <Link href="#features" className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-accent-400">
+                Features
+              </Link>
+              <Link href="#how-it-works" className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-accent-400">
+                How It Works
+              </Link>
+              <Link href="#pricing" className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-accent-400">
+                Pricing
+              </Link>
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <Link href="/login" className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-accent-400">
+                  Sign In
+                </Link>
+                <Link href="/signup" className="block px-3 py-2 bg-primary-600 dark:bg-accent-500 text-white rounded-lg mt-2 text-center">
+                  Get Started
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+      </nav>
+
+      {/* Hero Section */}
+      <section className="pt-20 pb-16 px-4 sm:px-6 lg:px-8 min-h-screen flex items-center">
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* Left side - Content */}
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+              className="text-center lg:text-left"
+            >
+              <div className="inline-flex items-center px-4 py-2 bg-primary-100 dark:bg-accent-900/30 rounded-full mb-6">
+                <SparklesIcon className="w-5 h-5 text-primary-600 dark:text-accent-400 mr-2" />
+                <span className="text-sm font-medium text-primary-700 dark:text-accent-300">AI-Powered Career Platform</span>
+              </div>
+              
+              <h1 className="text-4xl lg:text-6xl font-bold mb-6 leading-tight">
+                <span className="gradient-text">Transform</span>
+                <br />
+                Your Career
+                <br />
+                <span className="text-gray-900 dark:text-white">Journey</span>
+              </h1>
+              
+              <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 leading-relaxed max-w-xl">
+                Discover your perfect career path with AI-powered recommendations, 
+                personalized learning, and data-driven insights that accelerate your professional growth.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-4 mb-12">
+                <Link href="/signup" className="bg-primary-600 dark:bg-accent-500 hover:bg-primary-700 dark:hover:bg-accent-600 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center">
+                  <RocketLaunchIcon className="w-5 h-5 mr-2" />
+                  Start Your Journey
+                </Link>
+                <button className="border-2 border-primary-600 dark:border-accent-500 text-primary-600 dark:text-accent-400 hover:bg-primary-50 dark:hover:bg-accent-900/20 px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center">
+                  <PlayIcon className="w-5 h-5 mr-2" />
+                  Watch Demo
+                </button>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                {stats.map((stat, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: index * 0.1 }}
+                    className="text-center lg:text-left"
+                  >
+                    <div className="text-2xl font-bold text-primary-600 dark:text-accent-400 mb-1">
+                      {stat.value}
+                    </div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                      {stat.label}
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                      {stat.description}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Right side - Visual */}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="flex items-center justify-center lg:justify-end"
+            >
+              <div className="relative w-96 h-96">
+                <div className="w-full h-full bg-gradient-to-br from-primary-100 to-primary-200 dark:from-accent-900/20 dark:to-accent-800/20 rounded-3xl flex items-center justify-center shadow-xl border border-primary-200 dark:border-accent-700">
+                  <div className="text-center">
+                    <div className="w-20 h-20 bg-gradient-to-br from-primary-500 to-primary-600 dark:from-accent-500 dark:to-accent-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                      <SparklesIcon className="w-10 h-10 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">AI-Powered</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">Career Intelligence</p>
+                  </div>
                 </div>
-                <p className="text-gray-400 text-sm">{stat.label}</p>
-              </GlassCard>
-            ))}
-          </motion.div>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="relative z-10 py-20 px-4">
+      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-800/50">
         <div className="max-w-7xl mx-auto">
           <motion.div
-            className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
+            className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-6xl font-bold mb-6 gradient-text font-display">
-              Powerful Features
+            <h2 className="text-3xl lg:text-5xl font-bold mb-6">
+              <span className="gradient-text">Powerful Features</span>
             </h2>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               Everything you need to accelerate your career and achieve your professional goals
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {features.map((feature, index) => (
               <motion.div
                 key={index}
-                className="feature-card"
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 viewport={{ once: true }}
+                className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700"
               >
-                <GlassCard className="p-8 h-full hover:scale-105 transition-transform duration-300" hover glow>
-                  <div className={`w-16 h-16 bg-gradient-to-r ${feature.gradient} rounded-2xl flex items-center justify-center mb-6`}>
-                    <feature.icon className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white mb-4">{feature.title}</h3>
-                  <p className="text-gray-300 leading-relaxed">{feature.description}</p>
-                </GlassCard>
+                <div className={`w-16 h-16 bg-gradient-to-r ${feature.gradient} rounded-2xl flex items-center justify-center mb-6`}>
+                  <feature.icon className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{feature.title}</h3>
+                <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{feature.description}</p>
               </motion.div>
             ))}
           </div>
@@ -252,19 +307,19 @@ const HomePage = () => {
       </section>
 
       {/* How It Works Section */}
-      <section className="relative z-10 py-20 px-4">
+      <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <motion.div
-            className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
+            className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-6xl font-bold mb-6 gradient-text font-display">
-              How It Works
+            <h2 className="text-3xl lg:text-5xl font-bold mb-6">
+              <span className="gradient-text">How It Works</span>
             </h2>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               Simple steps to transform your career with AI-powered insights
             </p>
           </motion.div>
@@ -292,71 +347,22 @@ const HomePage = () => {
             ].map((item, index) => (
               <motion.div
                 key={index}
-                className="text-center"
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: index * 0.2 }}
                 viewport={{ once: true }}
+                className="text-center"
               >
                 <div className="relative mb-8">
-                  <div className="w-24 h-24 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <item.icon className="w-12 h-12 text-white" />
+                  <div className="w-16 h-16 bg-gradient-to-r from-primary-500 to-accent-500 dark:from-accent-500 dark:to-primary-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <item.icon className="w-8 h-8 text-white" />
                   </div>
-                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-accent-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-primary-600 dark:bg-accent-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
                     {item.step}
                   </div>
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-4">{item.title}</h3>
-                <p className="text-gray-300 leading-relaxed">{item.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section className="relative z-10 py-20 px-4">
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl md:text-6xl font-bold mb-6 gradient-text font-display">
-              Success Stories
-            </h2>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              Join thousands of professionals who have transformed their careers with CareerAI
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-              >
-                <GlassCard className="p-8 h-full" hover>
-                  <div className="flex items-center mb-6">
-                    <div className="w-12 h-12 bg-gradient-to-r from-primary-400 to-secondary-400 rounded-full flex items-center justify-center mr-4">
-                      <span className="text-white font-bold text-lg">
-                        {testimonial.name.charAt(0)}
-                      </span>
-                    </div>
-                    <div>
-                      <h4 className="text-white font-semibold">{testimonial.name}</h4>
-                      <p className="text-gray-400 text-sm">{testimonial.role}</p>
-                    </div>
-                  </div>
-                  <p className="text-gray-300 leading-relaxed italic">
-                    "{testimonial.content}"
-                  </p>
-                </GlassCard>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{item.title}</h3>
+                <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{item.description}</p>
               </motion.div>
             ))}
           </div>
@@ -364,7 +370,7 @@ const HomePage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="relative z-10 py-20 px-4">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-primary-600 to-accent-600 dark:from-accent-600 dark:to-primary-600">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -372,58 +378,75 @@ const HomePage = () => {
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
           >
-            <GlassCard className="p-12" glow>
-              <h2 className="text-4xl md:text-5xl font-bold mb-6 gradient-text font-display">
-                Ready to Transform Your Career?
-              </h2>
-              <p className="text-xl text-gray-300 mb-8 leading-relaxed">
-                Join thousands of professionals who are already using AI to accelerate their careers. 
-                Start your journey today and unlock your full potential.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <Link href="/auth/signup">
-                  <AnimatedButton
-                    variant="primary"
-                    size="lg"
-                    glow
-                    gradient
-                    icon={<RocketLaunchIcon className="w-6 h-6" />}
-                  >
-                    Get Started Free
-                  </AnimatedButton>
-                </Link>
-                
-                <Link href="/features">
-                  <AnimatedButton
-                    variant="ghost"
-                    size="lg"
-                    icon={<ArrowRightIcon className="w-6 h-6" />}
-                    iconPosition="right"
-                  >
-                    Learn More
-                  </AnimatedButton>
-                </Link>
-              </div>
+            <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6">
+              Ready to Transform Your Career?
+            </h2>
+            <p className="text-lg text-white/90 mb-8 leading-relaxed max-w-2xl mx-auto">
+              Join thousands of professionals who are already using AI to accelerate their careers. 
+              Start your journey today and unlock your full potential.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
+              <Link href="/signup" className="bg-white text-primary-600 dark:text-accent-600 hover:bg-gray-100 px-6 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center">
+                <RocketLaunchIcon className="w-5 h-5 mr-2" />
+                Get Started Free
+              </Link>
+              <Link href="/demo" className="border-2 border-white text-white hover:bg-white hover:text-primary-600 dark:hover:text-accent-600 px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center">
+                <ArrowRightIcon className="w-5 h-5 mr-2" />
+                Learn More
+              </Link>
+            </div>
 
-              <div className="mt-8 flex items-center justify-center space-x-6 text-sm text-gray-400">
-                <div className="flex items-center">
-                  <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2" />
-                  <span>Free to start</span>
-                </div>
-                <div className="flex items-center">
-                  <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2" />
-                  <span>No credit card required</span>
-                </div>
-                <div className="flex items-center">
-                  <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2" />
-                  <span>Setup in 2 minutes</span>
-                </div>
+            <div className="flex flex-wrap justify-center gap-6 text-sm text-white/80">
+              <div className="flex items-center">
+                <CheckCircleIcon className="w-5 h-5 mr-2" />
+                <span>Free to start</span>
               </div>
-            </GlassCard>
+              <div className="flex items-center">
+                <CheckCircleIcon className="w-5 h-5 mr-2" />
+                <span>No credit card required</span>
+              </div>
+              <div className="flex items-center">
+                <CheckCircleIcon className="w-5 h-5 mr-2" />
+                <span>Setup in 2 minutes</span>
+              </div>
+            </div>
           </motion.div>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 dark:bg-gray-950 text-white py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div className="col-span-1 md:col-span-2">
+              <h3 className="text-2xl font-bold gradient-text mb-4">CareerAI</h3>
+              <p className="text-gray-400 mb-4 max-w-md">
+                Transform your career with AI-powered recommendations and personalized insights.
+              </p>
+            </div>
+            <div>
+              <h4 className="text-lg font-semibold mb-4">Product</h4>
+              <ul className="space-y-2 text-gray-400">
+                <li><Link href="/features" className="hover:text-white transition-colors">Features</Link></li>
+                <li><Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link></li>
+                <li><Link href="/demo" className="hover:text-white transition-colors">Demo</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-lg font-semibold mb-4">Company</h4>
+              <ul className="space-y-2 text-gray-400">
+                <li><Link href="/about" className="hover:text-white transition-colors">About</Link></li>
+                <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
+                <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+            <p>&copy; 2024 CareerAI. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

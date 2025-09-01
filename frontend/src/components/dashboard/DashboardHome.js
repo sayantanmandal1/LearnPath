@@ -11,7 +11,6 @@ import {
   BriefcaseIcon,
   AcademicCapIcon,
   UserIcon,
-  TrendingUpIcon,
   StarIcon,
   ClockIcon,
   CheckCircleIcon,
@@ -147,7 +146,7 @@ const DashboardHome = () => {
           <p className="text-2xl font-bold text-white">{value}</p>
           {change && (
             <div className={`flex items-center mt-2 text-sm ${change > 0 ? 'text-green-400' : 'text-red-400'}`}>
-              <TrendingUpIcon className="w-4 h-4 mr-1" />
+              <ChartBarIcon className="w-4 h-4 mr-1" />
               <span>{change > 0 ? '+' : ''}{change}%</span>
             </div>
           )}
