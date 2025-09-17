@@ -31,6 +31,7 @@ class ProfileExtractionResponse(BaseModel):
     github_profile: Optional[Dict[str, Any]] = None
     leetcode_profile: Optional[Dict[str, Any]] = None
     linkedin_profile: Optional[Dict[str, Any]] = None
+    merged_profile: Optional[Dict[str, Any]] = None
     validation_results: Dict[str, Dict[str, Any]] = {}
     errors: Dict[str, str] = {}
     warnings: list[str] = []
@@ -117,6 +118,7 @@ async def extract_profiles(
             github_profile=result.github_profile,
             leetcode_profile=result.leetcode_profile,
             linkedin_profile=result.linkedin_profile,
+            merged_profile=result.merged_profile,
             validation_results=validation_results_dict,
             errors=result.errors,
             warnings=result.warnings,
@@ -229,3 +231,50 @@ async def get_api_config() -> Dict[str, Any]:
         "profile_extraction_timeout": external_api_config.profile_extraction_timeout,
         "has_github_token": external_api_config.github_token is not None
     }
+
+
+@router.get("/circuit-breakers/stats")
+async def get_circuit_breaker_stats(
+    service: ExternalAPIIntegrationService = Depends(get_integration_service)
+) -> Dict[str, Any]:
+    """
+    Get circuit breaker statistics for all external services.
+    
+    Returns the current state and statistics for circuit breakers protecting
+    external API calls to GitHub, LeetCode, and LinkedIn.
+    """
+    return service.get_circuit_breaker_stats()
+
+
+@router.post("/circuit-breakers/reset")
+async def reset_all_circuit_breakers(
+    service: ExternalAPIIntegrationService = Depends(get_integration_service)
+) -> Dict[str, str]:
+    """
+    Reset all circuit breakers.
+    
+    This will reset all circuit breakers to the closed state, allowing
+    requests to flow through normally.
+    """
+    await service.reset_circuit_breakers()
+    return {"message": "All circuit breakers have been reset"}
+
+
+@router.post("/circuit-breakers/{service_name}/reset")
+async def reset_circuit_breaker(
+    service_name: str,
+    service: ExternalAPIIntegrationService = Depends(get_integration_service)
+) -> Dict[str, str]:
+    """
+    Reset a specific circuit breaker.
+    
+    - **service_name**: Name of the service (github, leetcode, linkedin)
+    """
+    if service_name not in ["github", "leetcode", "linkedin"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid service name. Must be one of: github, leetcode, linkedin"
+        )
+    
+    await service.reset_circuit_breaker(service_name)
+    return {"message": f"Circuit breaker for {service_name} has been reset"}

@@ -650,6 +650,361 @@ class UserProfileService:
         
         return skill_gaps
     
+    async def get_profile_analytics(
+        self,
+        db: AsyncSession,
+        user_id: str
+    ) -> Dict[str, Any]:
+        """
+        Get comprehensive profile analytics and insights.
+        
+        Returns:
+        - Profile completeness score
+        - Skill distribution analysis
+        - Data freshness metrics
+        - Platform coverage analysis
+        - Skill gaps summary
+        - Personalized recommendations
+        """
+        try:
+            # Get user profile
+            profile = await self.profile_repo.get_by_user_id(db, user_id)
+            if not profile:
+                raise NotFoundError(f"Profile not found for user {user_id}")
+            
+            # Calculate profile completeness
+            completeness_score = self._calculate_profile_completeness(profile)
+            
+            # Calculate overall profile score
+            profile_score = self._calculate_profile_score(profile)
+            
+            # Analyze skill distribution
+            skill_analysis = self._analyze_skill_distribution(profile.skills or {})
+            
+            # Check data freshness
+            data_freshness = self._analyze_data_freshness(profile)
+            
+            # Analyze platform coverage
+            platform_coverage = self._analyze_platform_coverage(profile)
+            
+            # Generate recommendations
+            recommendations = self._generate_profile_recommendations(profile, completeness_score)
+            
+            # Update profile with calculated scores
+            await self.profile_repo.update(db, profile.id, {
+                'profile_score': profile_score,
+                'completeness_score': completeness_score
+            })
+            
+            return {
+                'profile_score': profile_score,
+                'completeness_score': completeness_score,
+                'skill_analysis': skill_analysis,
+                'data_freshness': data_freshness,
+                'platform_coverage': platform_coverage,
+                'recommendations': recommendations,
+                'summary': {
+                    'total_skills': len(profile.skills or {}),
+                    'platforms_connected': len([p for p in [profile.github_username, profile.leetcode_id, profile.linkedin_url] if p]),
+                    'profile_strength': 'Strong' if profile_score >= 80 else 'Good' if profile_score >= 60 else 'Needs Improvement'
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting profile analytics for user {user_id}: {str(e)}")
+            raise
+    
+    def _calculate_profile_completeness(self, profile: UserProfile) -> float:
+        """Calculate profile completeness score (0-100)."""
+        total_fields = 0
+        completed_fields = 0
+        
+        # Core fields (weighted more heavily)
+        core_fields = [
+            ('current_role', 3), ('experience_years', 2), ('location', 2),
+            ('industry', 2), ('desired_role', 3), ('career_goals', 2),
+            ('education', 2), ('skills', 4)
+        ]
+        
+        for field_name, weight in core_fields:
+            total_fields += weight
+            field_value = getattr(profile, field_name, None)
+            if field_value:
+                if field_name == 'skills' and isinstance(field_value, dict) and len(field_value) > 0:
+                    completed_fields += weight
+                elif field_name != 'skills' and str(field_value).strip():
+                    completed_fields += weight
+        
+        # Optional fields (lower weight)
+        optional_fields = [
+            'timeframe', 'salary_expectation', 'certifications', 'languages',
+            'work_type', 'company_size', 'work_culture', 'benefits'
+        ]
+        
+        for field_name in optional_fields:
+            total_fields += 1
+            field_value = getattr(profile, field_name, None)
+            if field_value:
+                if field_name == 'benefits' and isinstance(field_value, list) and len(field_value) > 0:
+                    completed_fields += 1
+                elif field_name != 'benefits' and str(field_value).strip():
+                    completed_fields += 1
+        
+        # Platform connections
+        platform_fields = ['github_username', 'leetcode_id', 'linkedin_url']
+        for field_name in platform_fields:
+            total_fields += 1
+            field_value = getattr(profile, field_name, None)
+            if field_value and str(field_value).strip():
+                completed_fields += 1
+        
+        return (completed_fields / total_fields) * 100 if total_fields > 0 else 0
+    
+    def _calculate_profile_score(self, profile: UserProfile) -> float:
+        """Calculate overall profile score (0-100)."""
+        score = 0
+        
+        # Completeness contributes 40%
+        completeness_score = self._calculate_profile_completeness(profile)
+        score += completeness_score * 0.4
+        
+        # Skills quality contributes 30%
+        skills_score = self._calculate_skills_score(profile.skills or {})
+        score += skills_score * 0.3
+        
+        # Platform integration contributes 20%
+        platform_score = self._calculate_platform_integration_score(profile)
+        score += platform_score * 0.2
+        
+        # Data freshness contributes 10%
+        freshness_score = self._calculate_data_freshness_score(profile)
+        score += freshness_score * 0.1
+        
+        return min(100, max(0, score))
+    
+    def _calculate_skills_score(self, skills: Dict[str, float]) -> float:
+        """Calculate skills quality score."""
+        if not skills:
+            return 0
+        
+        # Base score from number of skills
+        skill_count_score = min(50, len(skills) * 5)  # Up to 50 points for 10+ skills
+        
+        # Quality score from confidence levels
+        avg_confidence = sum(skills.values()) / len(skills)
+        confidence_score = avg_confidence * 50  # Up to 50 points for high confidence
+        
+        return skill_count_score + confidence_score
+    
+    def _calculate_platform_integration_score(self, profile: UserProfile) -> float:
+        """Calculate platform integration score."""
+        platforms = [profile.github_username, profile.leetcode_id, profile.linkedin_url]
+        connected_platforms = len([p for p in platforms if p])
+        
+        base_score = (connected_platforms / len(platforms)) * 70  # Up to 70 points
+        
+        # Bonus for having platform data
+        platform_data_bonus = 0
+        if profile.platform_data:
+            for platform in ['github', 'leetcode', 'linkedin']:
+                if platform in profile.platform_data and profile.platform_data[platform]:
+                    platform_data_bonus += 10
+        
+        return min(100, base_score + platform_data_bonus)
+    
+    def _calculate_data_freshness_score(self, profile: UserProfile) -> float:
+        """Calculate data freshness score."""
+        if not profile.data_last_updated:
+            return 50  # Neutral score for new profiles
+        
+        days_since_update = (datetime.utcnow() - profile.data_last_updated).days
+        
+        if days_since_update <= 7:
+            return 100
+        elif days_since_update <= 30:
+            return 80
+        elif days_since_update <= 90:
+            return 60
+        else:
+            return 30
+    
+    def _analyze_skill_distribution(self, skills: Dict[str, float]) -> Dict[str, Any]:
+        """Analyze skill distribution and categorization."""
+        if not skills:
+            return {
+                'total_skills': 0,
+                'categories': {},
+                'confidence_distribution': {},
+                'top_skills': []
+            }
+        
+        # Categorize skills (simplified categorization)
+        categories = {
+            'programming_languages': [],
+            'frameworks': [],
+            'tools': [],
+            'soft_skills': [],
+            'other': []
+        }
+        
+        programming_languages = ['python', 'javascript', 'java', 'c++', 'c#', 'go', 'rust', 'typescript', 'php', 'ruby']
+        frameworks = ['react', 'angular', 'vue', 'django', 'flask', 'spring', 'express', 'laravel']
+        tools = ['git', 'docker', 'kubernetes', 'aws', 'azure', 'jenkins', 'terraform']
+        soft_skills = ['leadership', 'communication', 'teamwork', 'problem-solving']
+        
+        for skill, confidence in skills.items():
+            skill_lower = skill.lower()
+            if any(lang in skill_lower for lang in programming_languages):
+                categories['programming_languages'].append({'skill': skill, 'confidence': confidence})
+            elif any(fw in skill_lower for fw in frameworks):
+                categories['frameworks'].append({'skill': skill, 'confidence': confidence})
+            elif any(tool in skill_lower for tool in tools):
+                categories['tools'].append({'skill': skill, 'confidence': confidence})
+            elif any(soft in skill_lower for soft in soft_skills):
+                categories['soft_skills'].append({'skill': skill, 'confidence': confidence})
+            else:
+                categories['other'].append({'skill': skill, 'confidence': confidence})
+        
+        # Confidence distribution
+        confidence_ranges = {'high': 0, 'medium': 0, 'low': 0}
+        for confidence in skills.values():
+            if confidence >= 0.7:
+                confidence_ranges['high'] += 1
+            elif confidence >= 0.4:
+                confidence_ranges['medium'] += 1
+            else:
+                confidence_ranges['low'] += 1
+        
+        # Top skills
+        top_skills = sorted(skills.items(), key=lambda x: x[1], reverse=True)[:10]
+        
+        return {
+            'total_skills': len(skills),
+            'categories': {k: len(v) for k, v in categories.items()},
+            'confidence_distribution': confidence_ranges,
+            'top_skills': [{'skill': skill, 'confidence': conf} for skill, conf in top_skills]
+        }
+    
+    def _analyze_data_freshness(self, profile: UserProfile) -> Dict[str, Any]:
+        """Analyze data freshness metrics."""
+        now = datetime.utcnow()
+        
+        freshness_info = {
+            'last_updated': profile.data_last_updated.isoformat() if profile.data_last_updated else None,
+            'days_since_update': None,
+            'freshness_status': 'unknown'
+        }
+        
+        if profile.data_last_updated:
+            days_since = (now - profile.data_last_updated).days
+            freshness_info['days_since_update'] = days_since
+            
+            if days_since <= 7:
+                freshness_info['freshness_status'] = 'fresh'
+            elif days_since <= 30:
+                freshness_info['freshness_status'] = 'recent'
+            elif days_since <= 90:
+                freshness_info['freshness_status'] = 'stale'
+            else:
+                freshness_info['freshness_status'] = 'outdated'
+        
+        return freshness_info
+    
+    def _analyze_platform_coverage(self, profile: UserProfile) -> Dict[str, Any]:
+        """Analyze platform coverage and integration."""
+        platforms = {
+            'github': {
+                'connected': bool(profile.github_username),
+                'username': profile.github_username,
+                'has_data': bool(profile.platform_data and profile.platform_data.get('github'))
+            },
+            'leetcode': {
+                'connected': bool(profile.leetcode_id),
+                'username': profile.leetcode_id,
+                'has_data': bool(profile.platform_data and profile.platform_data.get('leetcode'))
+            },
+            'linkedin': {
+                'connected': bool(profile.linkedin_url),
+                'url': profile.linkedin_url,
+                'has_data': bool(profile.platform_data and profile.platform_data.get('linkedin'))
+            }
+        }
+        
+        connected_count = sum(1 for p in platforms.values() if p['connected'])
+        data_count = sum(1 for p in platforms.values() if p['has_data'])
+        
+        return {
+            'platforms': platforms,
+            'connected_count': connected_count,
+            'data_count': data_count,
+            'coverage_percentage': (connected_count / len(platforms)) * 100
+        }
+    
+    def _generate_profile_recommendations(self, profile: UserProfile, completeness_score: float) -> List[Dict[str, Any]]:
+        """Generate personalized profile improvement recommendations."""
+        recommendations = []
+        
+        # Completeness recommendations
+        if completeness_score < 70:
+            missing_fields = []
+            if not profile.current_role:
+                missing_fields.append('current role')
+            if not profile.industry:
+                missing_fields.append('industry')
+            if not profile.desired_role:
+                missing_fields.append('desired role')
+            if not profile.career_goals:
+                missing_fields.append('career goals')
+            if not profile.education:
+                missing_fields.append('education')
+            
+            if missing_fields:
+                recommendations.append({
+                    'type': 'completeness',
+                    'priority': 'high',
+                    'title': 'Complete Your Profile',
+                    'description': f"Add missing information: {', '.join(missing_fields)}",
+                    'action': 'Fill in missing profile fields to improve your score'
+                })
+        
+        # Skills recommendations
+        skills_count = len(profile.skills or {})
+        if skills_count < 5:
+            recommendations.append({
+                'type': 'skills',
+                'priority': 'high',
+                'title': 'Add More Skills',
+                'description': f"You have {skills_count} skills listed. Add more to improve your profile.",
+                'action': 'List your technical and soft skills'
+            })
+        
+        # Platform integration recommendations
+        platforms = [profile.github_username, profile.leetcode_id, profile.linkedin_url]
+        connected_platforms = len([p for p in platforms if p])
+        
+        if connected_platforms < 2:
+            recommendations.append({
+                'type': 'integration',
+                'priority': 'medium',
+                'title': 'Connect More Platforms',
+                'description': 'Connect your GitHub, LeetCode, and LinkedIn profiles for better insights.',
+                'action': 'Add your platform usernames/URLs'
+            })
+        
+        # Data freshness recommendations
+        if profile.data_last_updated:
+            days_since_update = (datetime.utcnow() - profile.data_last_updated).days
+            if days_since_update > 30:
+                recommendations.append({
+                    'type': 'freshness',
+                    'priority': 'low',
+                    'title': 'Refresh Your Data',
+                    'description': f"Your profile data was last updated {days_since_update} days ago.",
+                    'action': 'Refresh your external platform data'
+                })
+        
+        return recommendations
+    
     async def _validate_profile_consistency(
         self,
         existing_profile: UserProfile,
@@ -683,6 +1038,36 @@ class UserProfileService:
                 if not isinstance(confidence, (int, float)) or confidence < 0 or confidence > 1:
                     validation_result['errors'].append(f"Invalid confidence score for skill '{skill}'")
                     validation_result['is_valid'] = False
+        
+        # Validate timeframe values
+        if update_data.timeframe is not None:
+            valid_timeframes = ['immediate', 'short', 'medium', 'long']
+            if update_data.timeframe not in valid_timeframes:
+                validation_result['warnings'].append(f"Unusual timeframe value: {update_data.timeframe}")
+        
+        # Validate work type values
+        if update_data.work_type is not None:
+            valid_work_types = ['remote', 'hybrid', 'onsite', 'flexible']
+            if update_data.work_type not in valid_work_types:
+                validation_result['warnings'].append(f"Unusual work type value: {update_data.work_type}")
+        
+        # Validate company size values
+        if update_data.company_size is not None:
+            valid_sizes = ['startup', 'small', 'medium', 'large']
+            if update_data.company_size not in valid_sizes:
+                validation_result['warnings'].append(f"Unusual company size value: {update_data.company_size}")
+        
+        # Validate benefits format
+        if update_data.benefits is not None:
+            if not isinstance(update_data.benefits, list):
+                validation_result['errors'].append("Benefits must be a list of strings")
+                validation_result['is_valid'] = False
+            else:
+                for benefit in update_data.benefits:
+                    if not isinstance(benefit, str):
+                        validation_result['errors'].append("All benefits must be strings")
+                        validation_result['is_valid'] = False
+                        break
         
         return validation_result
     

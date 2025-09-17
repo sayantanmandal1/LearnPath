@@ -436,14 +436,10 @@ async def get_skill_gaps(
         current_skills = profile.skills or {}
         skill_gaps = await profile_service._calculate_skill_gaps(current_skills, role_to_analyze)
         
-        # Analyze and categorize gaps
-        gap_analysis = profile_service._summarize_skill_gaps(skill_gaps)
-        
         return {
             'target_role': role_to_analyze,
             'current_skills_count': len(current_skills),
             'skill_gaps': skill_gaps,
-            'gap_analysis': gap_analysis,
             'recommendations': [
                 {
                     'skill': skill,
@@ -461,4 +457,45 @@ async def get_skill_gaps(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get skill gaps"
+        )
+
+
+@router.post("/me/calculate-score")
+async def calculate_profile_score(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Calculate and update profile score based on current data.
+    
+    Returns:
+    - Updated profile score
+    - Completeness score
+    - Breakdown of scoring factors
+    - Recommendations for improvement
+    """
+    try:
+        analytics = await profile_service.get_profile_analytics(
+            db=db,
+            user_id=current_user.id
+        )
+        
+        return {
+            'profile_score': analytics['profile_score'],
+            'completeness_score': analytics['completeness_score'],
+            'scoring_breakdown': {
+                'completeness_contribution': analytics['completeness_score'] * 0.4,
+                'skills_contribution': analytics['skill_analysis']['total_skills'] * 5 * 0.3,  # Simplified
+                'platform_contribution': analytics['platform_coverage']['coverage_percentage'] * 0.2,
+                'freshness_contribution': 80 * 0.1  # Simplified
+            },
+            'recommendations': analytics['recommendations'],
+            'summary': analytics['summary']
+        }
+        
+    except Exception as e:
+        logger.error(f"Error calculating profile score for user {current_user.id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to calculate profile score"
         )

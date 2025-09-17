@@ -236,60 +236,87 @@ async def _generate_market_insights(
     skills_str: str,
     db: AsyncSession
 ) -> MarketInsights:
-    """Generate market insights for the desired role and skills"""
+    """Generate market insights for the desired role and skills using real market data"""
     
-    # Parse skills
-    skills_list = [skill.strip().lower() for skill in skills_str.split(',') if skill.strip()]
-    
-    # Simulate market insights based on role and skills
-    # In production, this would query real market data
-    
-    role_insights = {
-        'software engineer': {
-            'demand_trend': 'High',
-            'salary_growth': '+15% YoY',
-            'top_skills': ['Python', 'JavaScript', 'React', 'AWS', 'Docker'],
-            'competition_level': 'Medium'
-        },
-        'data scientist': {
-            'demand_trend': 'Very High',
-            'salary_growth': '+18% YoY',
-            'top_skills': ['Python', 'Machine Learning', 'SQL', 'TensorFlow', 'Statistics'],
-            'competition_level': 'High'
-        },
-        'frontend developer': {
-            'demand_trend': 'High',
-            'salary_growth': '+12% YoY',
-            'top_skills': ['React', 'JavaScript', 'TypeScript', 'CSS', 'Vue.js'],
-            'competition_level': 'Medium'
-        },
-        'backend developer': {
-            'demand_trend': 'High',
-            'salary_growth': '+14% YoY',
-            'top_skills': ['Python', 'Java', 'Node.js', 'SQL', 'Microservices'],
-            'competition_level': 'Medium'
+    try:
+        # Import the market insights service
+        from app.services.market_insights_service import MarketInsightsService
+        
+        market_service = MarketInsightsService()
+        
+        # Parse skills
+        skills_list = [skill.strip() for skill in skills_str.split(',') if skill.strip()]
+        
+        # Get comprehensive market insights
+        insights_data = await market_service.get_comprehensive_market_insights(
+            db=db,
+            role=desired_role,
+            skills=skills_list,
+            location=None,
+            experience_level=None,
+            days=90
+        )
+        
+        # Convert to the expected format
+        return MarketInsights(
+            demand_trend=insights_data['demand_trend'],
+            salary_growth=insights_data['salary_growth'],
+            top_skills=insights_data['top_skills'][:5],  # Limit to top 5
+            competition_level=insights_data['competition_level']
+        )
+        
+    except Exception as e:
+        logger.warning(f"Failed to get real market insights, using fallback: {str(e)}")
+        
+        # Fallback to simulated data if real analysis fails
+        skills_list = [skill.strip().lower() for skill in skills_str.split(',') if skill.strip()]
+        
+        role_insights = {
+            'software engineer': {
+                'demand_trend': 'High',
+                'salary_growth': '+15% YoY',
+                'top_skills': ['Python', 'JavaScript', 'React', 'AWS', 'Docker'],
+                'competition_level': 'Medium'
+            },
+            'data scientist': {
+                'demand_trend': 'Very High',
+                'salary_growth': '+18% YoY',
+                'top_skills': ['Python', 'Machine Learning', 'SQL', 'TensorFlow', 'Statistics'],
+                'competition_level': 'High'
+            },
+            'frontend developer': {
+                'demand_trend': 'High',
+                'salary_growth': '+12% YoY',
+                'top_skills': ['React', 'JavaScript', 'TypeScript', 'CSS', 'Vue.js'],
+                'competition_level': 'Medium'
+            },
+            'backend developer': {
+                'demand_trend': 'High',
+                'salary_growth': '+14% YoY',
+                'top_skills': ['Python', 'Java', 'Node.js', 'SQL', 'Microservices'],
+                'competition_level': 'Medium'
+            }
         }
-    }
-    
-    # Find matching role insights
-    role_key = desired_role.lower()
-    insights = None
-    
-    for key, data in role_insights.items():
-        if key in role_key or any(word in role_key for word in key.split()):
-            insights = data
-            break
-    
-    # Default insights if role not found
-    if not insights:
-        insights = {
-            'demand_trend': 'Medium',
-            'salary_growth': '+10% YoY',
-            'top_skills': skills_list[:5] if skills_list else ['Communication', 'Problem Solving'],
-            'competition_level': 'Medium'
-        }
-    
-    return MarketInsights(**insights)
+        
+        # Find matching role insights
+        role_key = desired_role.lower()
+        insights = None
+        
+        for key, data in role_insights.items():
+            if key in role_key or any(word in role_key for word in key.split()):
+                insights = data
+                break
+        
+        # Default insights if role not found
+        if not insights:
+            insights = {
+                'demand_trend': 'Medium',
+                'salary_growth': '+10% YoY',
+                'top_skills': skills_list[:5] if skills_list else ['Communication', 'Problem Solving'],
+                'competition_level': 'Medium'
+            }
+        
+        return MarketInsights(**insights)
 
 
 async def _generate_mock_analysis_response(

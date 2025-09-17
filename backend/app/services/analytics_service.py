@@ -329,6 +329,138 @@ class AnalyticsService:
             logger.error(f"Error tracking historical progress for user {user_id}: {str(e)}")
             raise AnalyticsError(f"Failed to track historical progress: {str(e)}")
     
+    async def calculate_comprehensive_user_analytics(self, user_id: str) -> Dict[str, Any]:
+        """Calculate comprehensive user analytics with aggregation across all dimensions"""
+        try:
+            user_profile = await self._get_user_profile(user_id)
+            user_skills = await self._get_user_skills(user_id)
+            
+            # Calculate skill distribution analytics
+            skill_analytics = await self._calculate_skill_analytics(user_skills)
+            
+            # Calculate experience analytics
+            experience_analytics = await self._calculate_experience_analytics(user_profile)
+            
+            # Calculate market position analytics
+            market_analytics = await self._calculate_market_position_analytics(user_id, user_skills)
+            
+            # Calculate career progression analytics
+            progression_analytics = await self._calculate_career_progression_analytics(user_id)
+            
+            # Calculate overall career score
+            overall_score = await self._calculate_overall_career_score(
+                skill_analytics, experience_analytics, market_analytics, progression_analytics
+            )
+            
+            return {
+                "user_id": user_id,
+                "overall_career_score": overall_score,
+                "skill_analytics": skill_analytics,
+                "experience_analytics": experience_analytics,
+                "market_analytics": market_analytics,
+                "progression_analytics": progression_analytics,
+                "calculated_at": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating comprehensive analytics for user {user_id}: {str(e)}")
+            raise AnalyticsError(f"Failed to calculate comprehensive analytics: {str(e)}")
+    
+    async def analyze_strengths_and_improvements(self, user_id: str) -> Dict[str, Any]:
+        """Analyze user strengths and improvement areas with detailed recommendations"""
+        try:
+            user_profile = await self._get_user_profile(user_id)
+            user_skills = await self._get_user_skills(user_id)
+            
+            # Analyze skill strengths
+            skill_strengths = await self._analyze_skill_strengths(user_skills)
+            
+            # Analyze experience strengths
+            experience_strengths = await self._analyze_experience_strengths(user_profile)
+            
+            # Identify improvement areas
+            improvement_areas = await self._identify_improvement_areas(user_id, user_skills, user_profile)
+            
+            # Generate actionable recommendations
+            recommendations = await self._generate_improvement_recommendations(improvement_areas)
+            
+            # Calculate strength vs improvement balance
+            strength_score = await self._calculate_strength_score(skill_strengths, experience_strengths)
+            improvement_urgency = await self._calculate_improvement_urgency(improvement_areas)
+            
+            return {
+                "user_id": user_id,
+                "strengths": {
+                    "skills": skill_strengths,
+                    "experience": experience_strengths,
+                    "overall_strength_score": strength_score
+                },
+                "improvement_areas": {
+                    "areas": improvement_areas,
+                    "recommendations": recommendations,
+                    "urgency_score": improvement_urgency
+                },
+                "balance_analysis": {
+                    "strength_to_improvement_ratio": strength_score / max(improvement_urgency, 1),
+                    "development_focus": "strengths" if strength_score > improvement_urgency * 1.5 else "improvements"
+                },
+                "analyzed_at": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error analyzing strengths and improvements for user {user_id}: {str(e)}")
+            raise AnalyticsError(f"Failed to analyze strengths and improvements: {str(e)}")
+    
+    async def generate_overall_career_score_and_recommendations(self, user_id: str, target_role: Optional[str] = None) -> Dict[str, Any]:
+        """Generate overall career score with comprehensive recommendations"""
+        try:
+            # Get comprehensive analytics
+            analytics = await self.calculate_comprehensive_user_analytics(user_id)
+            strengths_analysis = await self.analyze_strengths_and_improvements(user_id)
+            
+            # Calculate role-specific score if target role provided
+            role_specific_score = None
+            role_recommendations = []
+            if target_role:
+                role_specific_score = await self._calculate_role_specific_score(user_id, target_role)
+                role_recommendations = await self._generate_role_specific_recommendations(user_id, target_role)
+            
+            # Generate comprehensive recommendations
+            comprehensive_recommendations = await self._generate_comprehensive_recommendations(
+                analytics, strengths_analysis, role_specific_score, role_recommendations
+            )
+            
+            # Calculate priority actions
+            priority_actions = await self._calculate_priority_actions(
+                analytics, strengths_analysis, target_role
+            )
+            
+            # Generate career trajectory predictions
+            trajectory_predictions = await self._generate_trajectory_predictions(
+                analytics, target_role
+            )
+            
+            return {
+                "user_id": user_id,
+                "overall_career_score": analytics["overall_career_score"],
+                "role_specific_score": role_specific_score,
+                "target_role": target_role,
+                "comprehensive_recommendations": comprehensive_recommendations,
+                "priority_actions": priority_actions,
+                "trajectory_predictions": trajectory_predictions,
+                "score_breakdown": {
+                    "skills": analytics["skill_analytics"]["overall_score"],
+                    "experience": analytics["experience_analytics"]["score"],
+                    "market_position": analytics["market_analytics"]["position_score"],
+                    "progression": analytics["progression_analytics"]["progression_score"]
+                },
+                "generated_at": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating career score and recommendations for user {user_id}: {str(e)}")
+            raise AnalyticsError(f"Failed to generate career score and recommendations: {str(e)}")
+
     async def generate_comprehensive_report(self, request: AnalyticsRequest) -> CareerAnalysisReport:
         """Generate comprehensive career analysis report"""
         try:
@@ -358,6 +490,11 @@ class AnalyticsService:
                         request.user_id, request.tracking_period_days
                     ))
             
+            # Add comprehensive analytics tasks
+            tasks.append(self.calculate_comprehensive_user_analytics(request.user_id))
+            tasks.append(self.analyze_strengths_and_improvements(request.user_id))
+            tasks.append(self.generate_overall_career_score_and_recommendations(request.user_id, request.target_role))
+            
             # Execute all tasks concurrently
             results = await asyncio.gather(*tasks, return_exceptions=True)
             
@@ -367,6 +504,9 @@ class AnalyticsService:
             skill_gap_report = None
             job_compatibility_report = None
             progress_report = None
+            comprehensive_analytics = None
+            strengths_analysis = None
+            career_score_recommendations = None
             
             result_index = 0
             if "skill_radar" in request.analysis_types or "full_report" in request.analysis_types:
@@ -387,15 +527,34 @@ class AnalyticsService:
             
             if ("progress_tracking" in request.analysis_types or "full_report" in request.analysis_types) and request.include_progress_tracking:
                 progress_report = results[result_index] if not isinstance(results[result_index], Exception) else None
+                result_index += 1
+            
+            # Extract comprehensive analytics results
+            comprehensive_analytics = results[result_index] if not isinstance(results[result_index], Exception) else None
+            result_index += 1
+            strengths_analysis = results[result_index] if not isinstance(results[result_index], Exception) else None
+            result_index += 1
+            career_score_recommendations = results[result_index] if not isinstance(results[result_index], Exception) else None
             
             # Get profile summary
             profile_summary = await self._get_profile_summary(request.user_id)
             
-            # Generate recommendations and next steps
-            recommendations = await self._generate_recommendations(
-                skill_gap_report, job_compatibility_report, progress_report
+            # Enhance profile summary with comprehensive analytics
+            if comprehensive_analytics:
+                profile_summary.update({
+                    "overall_career_score": comprehensive_analytics.get("overall_career_score", 0),
+                    "skill_analytics": comprehensive_analytics.get("skill_analytics", {}),
+                    "market_position": comprehensive_analytics.get("market_analytics", {})
+                })
+            
+            # Generate enhanced recommendations and next steps
+            recommendations = await self._generate_enhanced_recommendations(
+                skill_gap_report, job_compatibility_report, progress_report,
+                strengths_analysis, career_score_recommendations
             )
-            next_steps = await self._generate_next_steps(skill_gap_report, career_roadmap)
+            next_steps = await self._generate_enhanced_next_steps(
+                skill_gap_report, career_roadmap, strengths_analysis, career_score_recommendations
+            )
             
             return CareerAnalysisReport(
                 user_id=request.user_id,
@@ -559,6 +718,506 @@ class AnalyticsService:
         
         multiplier = complexity_multipliers.get(skill_name.lower(), 1.0)
         return int(gap_size * base_hours_per_point * multiplier)
+    
+    async def _calculate_skill_analytics(self, user_skills: List[UserSkill]) -> Dict[str, Any]:
+        """Calculate comprehensive skill analytics"""
+        if not user_skills:
+            return {
+                "total_skills": 0,
+                "average_confidence": 0,
+                "skill_distribution": {},
+                "top_skills": [],
+                "overall_score": 0
+            }
+        
+        # Calculate skill distribution by category
+        skill_distribution = {}
+        for skill in user_skills:
+            category = skill.skill.category or "uncategorized"
+            if category not in skill_distribution:
+                skill_distribution[category] = {"count": 0, "avg_confidence": 0, "skills": []}
+            skill_distribution[category]["count"] += 1
+            skill_distribution[category]["skills"].append({
+                "name": skill.skill.name,
+                "confidence": skill.confidence_score * 100
+            })
+        
+        # Calculate averages for each category
+        for category in skill_distribution:
+            skills = skill_distribution[category]["skills"]
+            skill_distribution[category]["avg_confidence"] = sum(s["confidence"] for s in skills) / len(skills)
+        
+        # Get top skills
+        top_skills = sorted(
+            [{"name": skill.skill.name, "confidence": skill.confidence_score * 100} for skill in user_skills],
+            key=lambda x: x["confidence"],
+            reverse=True
+        )[:10]
+        
+        # Calculate overall score
+        overall_score = sum(skill.confidence_score * 100 for skill in user_skills) / len(user_skills)
+        
+        return {
+            "total_skills": len(user_skills),
+            "average_confidence": overall_score,
+            "skill_distribution": skill_distribution,
+            "top_skills": top_skills,
+            "overall_score": overall_score
+        }
+    
+    async def _calculate_experience_analytics(self, user_profile: UserProfile) -> Dict[str, Any]:
+        """Calculate experience-based analytics"""
+        experience_years = user_profile.experience_years or 0
+        current_role = user_profile.current_role or "Not specified"
+        education = user_profile.education or "Not specified"
+        
+        # Calculate experience score based on years and role level
+        experience_score = min(100, (experience_years / 10) * 100)  # Max at 10 years
+        
+        # Adjust score based on role seniority
+        role_multiplier = 1.0
+        if "senior" in current_role.lower():
+            role_multiplier = 1.2
+        elif "lead" in current_role.lower() or "manager" in current_role.lower():
+            role_multiplier = 1.3
+        elif "director" in current_role.lower() or "vp" in current_role.lower():
+            role_multiplier = 1.4
+        
+        experience_score = min(100, experience_score * role_multiplier)
+        
+        return {
+            "experience_years": experience_years,
+            "current_role": current_role,
+            "education": education,
+            "score": experience_score,
+            "role_level": self._determine_role_level(current_role),
+            "career_stage": self._determine_career_stage(experience_years)
+        }
+    
+    async def _calculate_market_position_analytics(self, user_id: str, user_skills: List[UserSkill]) -> Dict[str, Any]:
+        """Calculate user's position in the job market"""
+        # Get market demand for user's skills
+        high_demand_skills = []
+        medium_demand_skills = []
+        low_demand_skills = []
+        
+        for skill in user_skills:
+            # Simulate market demand analysis
+            demand_score = await self._get_skill_market_demand(skill.skill.name)
+            skill_data = {
+                "name": skill.skill.name,
+                "confidence": skill.confidence_score * 100,
+                "demand_score": demand_score
+            }
+            
+            if demand_score >= 0.7:
+                high_demand_skills.append(skill_data)
+            elif demand_score >= 0.4:
+                medium_demand_skills.append(skill_data)
+            else:
+                low_demand_skills.append(skill_data)
+        
+        # Calculate overall market position score
+        total_demand_score = sum(skill["demand_score"] * skill["confidence"] / 100 for skill in 
+                                high_demand_skills + medium_demand_skills + low_demand_skills)
+        position_score = min(100, (total_demand_score / len(user_skills)) * 100) if user_skills else 0
+        
+        return {
+            "position_score": position_score,
+            "high_demand_skills": high_demand_skills,
+            "medium_demand_skills": medium_demand_skills,
+            "low_demand_skills": low_demand_skills,
+            "market_competitiveness": "high" if position_score >= 75 else "medium" if position_score >= 50 else "low"
+        }
+    
+    async def _calculate_career_progression_analytics(self, user_id: str) -> Dict[str, Any]:
+        """Calculate career progression analytics"""
+        # This would typically analyze historical data
+        # For now, simulate progression analysis
+        progression_score = 65.0  # Simulated
+        
+        return {
+            "progression_score": progression_score,
+            "growth_trajectory": "steady",
+            "promotion_readiness": progression_score >= 70,
+            "skill_growth_rate": "moderate",
+            "experience_diversity": "good"
+        }
+    
+    async def _calculate_overall_career_score(self, skill_analytics: Dict, experience_analytics: Dict, 
+                                           market_analytics: Dict, progression_analytics: Dict) -> float:
+        """Calculate overall career score from all analytics dimensions"""
+        # Weighted average of different components
+        weights = {
+            "skills": 0.35,
+            "experience": 0.25,
+            "market_position": 0.25,
+            "progression": 0.15
+        }
+        
+        overall_score = (
+            skill_analytics["overall_score"] * weights["skills"] +
+            experience_analytics["score"] * weights["experience"] +
+            market_analytics["position_score"] * weights["market_position"] +
+            progression_analytics["progression_score"] * weights["progression"]
+        )
+        
+        return round(overall_score, 2)
+    
+    async def _analyze_skill_strengths(self, user_skills: List[UserSkill]) -> List[Dict[str, Any]]:
+        """Analyze user's skill strengths"""
+        strengths = []
+        
+        for skill in user_skills:
+            confidence = skill.confidence_score * 100
+            if confidence >= 75:  # High confidence threshold
+                market_demand = await self._get_skill_market_demand(skill.skill.name)
+                strengths.append({
+                    "skill_name": skill.skill.name,
+                    "confidence_score": confidence,
+                    "market_demand": market_demand,
+                    "strength_level": "high" if confidence >= 90 else "medium",
+                    "market_value": "high" if market_demand >= 0.7 else "medium" if market_demand >= 0.4 else "low"
+                })
+        
+        # Sort by combination of confidence and market demand
+        strengths.sort(key=lambda x: x["confidence_score"] * x["market_demand"], reverse=True)
+        return strengths[:10]  # Top 10 strengths
+    
+    async def _analyze_experience_strengths(self, user_profile: UserProfile) -> List[Dict[str, Any]]:
+        """Analyze experience-based strengths"""
+        strengths = []
+        
+        experience_years = user_profile.experience_years or 0
+        if experience_years >= 3:
+            strengths.append({
+                "type": "experience_depth",
+                "description": f"{experience_years} years of professional experience",
+                "value": "high" if experience_years >= 5 else "medium"
+            })
+        
+        if user_profile.current_role:
+            role_level = self._determine_role_level(user_profile.current_role)
+            if role_level in ["senior", "lead", "manager"]:
+                strengths.append({
+                    "type": "leadership_experience",
+                    "description": f"Experience in {role_level} role",
+                    "value": "high"
+                })
+        
+        if user_profile.education and any(degree in user_profile.education.lower() 
+                                        for degree in ["bachelor", "master", "phd", "degree"]):
+            strengths.append({
+                "type": "educational_background",
+                "description": f"Strong educational foundation: {user_profile.education}",
+                "value": "medium"
+            })
+        
+        return strengths
+    
+    async def _identify_improvement_areas(self, user_id: str, user_skills: List[UserSkill], 
+                                        user_profile: UserProfile) -> List[Dict[str, Any]]:
+        """Identify areas for improvement"""
+        improvement_areas = []
+        
+        # Skill-based improvements
+        low_confidence_skills = [
+            skill for skill in user_skills 
+            if skill.confidence_score * 100 < 60
+        ]
+        
+        for skill in low_confidence_skills[:5]:  # Top 5 improvement areas
+            market_demand = await self._get_skill_market_demand(skill.skill.name)
+            improvement_areas.append({
+                "type": "skill_improvement",
+                "skill_name": skill.skill.name,
+                "current_level": skill.confidence_score * 100,
+                "target_level": 80,
+                "market_demand": market_demand,
+                "priority": "high" if market_demand >= 0.7 else "medium",
+                "estimated_effort": "medium"
+            })
+        
+        # Experience-based improvements
+        experience_years = user_profile.experience_years or 0
+        if experience_years < 2:
+            improvement_areas.append({
+                "type": "experience_building",
+                "description": "Build more professional experience",
+                "current_level": experience_years,
+                "target_level": 3,
+                "priority": "high",
+                "estimated_effort": "high"
+            })
+        
+        # Missing high-demand skills
+        user_skill_names = {skill.skill.name.lower() for skill in user_skills}
+        high_demand_skills = ["Python", "React", "AWS", "Docker", "Kubernetes"]  # Example
+        
+        for skill_name in high_demand_skills:
+            if skill_name.lower() not in user_skill_names:
+                improvement_areas.append({
+                    "type": "missing_skill",
+                    "skill_name": skill_name,
+                    "current_level": 0,
+                    "target_level": 70,
+                    "market_demand": 0.8,  # High demand
+                    "priority": "medium",
+                    "estimated_effort": "medium"
+                })
+        
+        return improvement_areas[:10]  # Top 10 improvement areas
+    
+    async def _generate_improvement_recommendations(self, improvement_areas: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Generate actionable improvement recommendations"""
+        recommendations = []
+        
+        for area in improvement_areas:
+            if area["type"] == "skill_improvement":
+                recommendations.append({
+                    "area": area["skill_name"],
+                    "recommendation": f"Focus on improving {area['skill_name']} through practice projects and courses",
+                    "actions": [
+                        f"Take an advanced {area['skill_name']} course",
+                        f"Build 2-3 projects using {area['skill_name']}",
+                        f"Contribute to open source {area['skill_name']} projects"
+                    ],
+                    "timeline": "3-6 months",
+                    "priority": area["priority"]
+                })
+            elif area["type"] == "missing_skill":
+                recommendations.append({
+                    "area": area["skill_name"],
+                    "recommendation": f"Learn {area['skill_name']} to increase market competitiveness",
+                    "actions": [
+                        f"Complete a comprehensive {area['skill_name']} course",
+                        f"Build a portfolio project showcasing {area['skill_name']}",
+                        f"Get certified in {area['skill_name']} if applicable"
+                    ],
+                    "timeline": "4-8 months",
+                    "priority": area["priority"]
+                })
+        
+        return recommendations
+    
+    async def _calculate_strength_score(self, skill_strengths: List[Dict], experience_strengths: List[Dict]) -> float:
+        """Calculate overall strength score"""
+        skill_score = len(skill_strengths) * 10  # 10 points per strength
+        experience_score = len(experience_strengths) * 15  # 15 points per experience strength
+        
+        return min(100, skill_score + experience_score)
+    
+    async def _calculate_improvement_urgency(self, improvement_areas: List[Dict]) -> float:
+        """Calculate improvement urgency score"""
+        high_priority_count = len([area for area in improvement_areas if area.get("priority") == "high"])
+        medium_priority_count = len([area for area in improvement_areas if area.get("priority") == "medium"])
+        
+        urgency_score = high_priority_count * 20 + medium_priority_count * 10
+        return min(100, urgency_score)
+    
+    async def _calculate_role_specific_score(self, user_id: str, target_role: str) -> float:
+        """Calculate score specific to target role"""
+        # Get skill gaps for target role
+        skill_gap_report = await self.analyze_skill_gaps(user_id, target_role)
+        
+        # Calculate role-specific score based on match percentage
+        return skill_gap_report.overall_match_score
+    
+    async def _generate_role_specific_recommendations(self, user_id: str, target_role: str) -> List[str]:
+        """Generate recommendations specific to target role"""
+        skill_gap_report = await self.analyze_skill_gaps(user_id, target_role)
+        
+        recommendations = []
+        for gap in skill_gap_report.skill_gaps[:5]:  # Top 5 gaps
+            if gap.priority == "high":
+                recommendations.append(
+                    f"Prioritize learning {gap.skill_name} - it's critical for {target_role} roles"
+                )
+            else:
+                recommendations.append(
+                    f"Consider improving {gap.skill_name} to better match {target_role} requirements"
+                )
+        
+        return recommendations
+    
+    async def _generate_comprehensive_recommendations(self, analytics: Dict, strengths_analysis: Dict,
+                                                   role_specific_score: Optional[float], 
+                                                   role_recommendations: List[str]) -> List[str]:
+        """Generate comprehensive recommendations"""
+        recommendations = []
+        
+        # Overall career score recommendations
+        overall_score = analytics["overall_career_score"]
+        if overall_score < 60:
+            recommendations.append("Focus on building foundational skills and gaining more experience")
+        elif overall_score < 80:
+            recommendations.append("You're on a good track - focus on specializing in high-demand areas")
+        else:
+            recommendations.append("Excellent profile - consider leadership roles or specialized expertise")
+        
+        # Skill-based recommendations
+        skill_score = analytics["skill_analytics"]["overall_score"]
+        if skill_score < 70:
+            recommendations.append("Invest time in developing your technical skills through courses and projects")
+        
+        # Market position recommendations
+        market_score = analytics["market_analytics"]["position_score"]
+        if market_score < 60:
+            recommendations.append("Focus on learning high-demand skills to improve your market position")
+        
+        # Add role-specific recommendations if available
+        recommendations.extend(role_recommendations[:3])  # Top 3 role-specific recommendations
+        
+        return recommendations[:8]  # Limit to 8 recommendations
+    
+    async def _calculate_priority_actions(self, analytics: Dict, strengths_analysis: Dict, 
+                                        target_role: Optional[str]) -> List[Dict[str, Any]]:
+        """Calculate priority actions based on analytics"""
+        actions = []
+        
+        # High-priority improvements
+        improvement_areas = strengths_analysis["improvement_areas"]["areas"]
+        high_priority_areas = [area for area in improvement_areas if area.get("priority") == "high"]
+        
+        for area in high_priority_areas[:3]:  # Top 3 high-priority areas
+            if area["type"] == "skill_improvement":
+                actions.append({
+                    "action": f"Improve {area['skill_name']} skills",
+                    "priority": "high",
+                    "timeline": "1-3 months",
+                    "impact": "high"
+                })
+            elif area["type"] == "missing_skill":
+                actions.append({
+                    "action": f"Learn {area['skill_name']}",
+                    "priority": "high", 
+                    "timeline": "3-6 months",
+                    "impact": "high"
+                })
+        
+        # Market position actions
+        market_score = analytics["market_analytics"]["position_score"]
+        if market_score < 70:
+            actions.append({
+                "action": "Focus on high-demand skills to improve market competitiveness",
+                "priority": "medium",
+                "timeline": "3-6 months",
+                "impact": "medium"
+            })
+        
+        return actions[:5]  # Top 5 priority actions
+    
+    async def _generate_trajectory_predictions(self, analytics: Dict, target_role: Optional[str]) -> Dict[str, Any]:
+        """Generate career trajectory predictions"""
+        overall_score = analytics["overall_career_score"]
+        
+        # Predict career growth based on current score
+        if overall_score >= 80:
+            growth_potential = "high"
+            timeline_to_next_level = "6-12 months"
+        elif overall_score >= 60:
+            growth_potential = "medium"
+            timeline_to_next_level = "12-18 months"
+        else:
+            growth_potential = "developing"
+            timeline_to_next_level = "18-24 months"
+        
+        return {
+            "growth_potential": growth_potential,
+            "timeline_to_next_level": timeline_to_next_level,
+            "predicted_salary_growth": "10-20%" if overall_score >= 70 else "5-15%",
+            "career_stability": "high" if overall_score >= 75 else "medium",
+            "target_role_readiness": overall_score >= 70 if target_role else None
+        }
+    
+    async def _generate_enhanced_recommendations(self, skill_gap_report, job_compatibility_report, 
+                                              progress_report, strengths_analysis, career_score_recommendations):
+        """Generate enhanced recommendations combining all analytics"""
+        recommendations = []
+        
+        # Add career score recommendations
+        if career_score_recommendations:
+            recommendations.extend(career_score_recommendations.get("comprehensive_recommendations", []))
+        
+        # Add strength-based recommendations
+        if strengths_analysis:
+            improvement_recs = strengths_analysis.get("improvement_areas", {}).get("recommendations", [])
+            for rec in improvement_recs[:3]:
+                recommendations.append(rec.get("recommendation", ""))
+        
+        # Add existing recommendations
+        if skill_gap_report and hasattr(skill_gap_report, 'priority_skills'):
+            for skill in skill_gap_report.priority_skills[:2]:
+                recommendations.append(f"Focus on developing {skill} as it's critical for your career goals")
+        
+        return list(set(recommendations))[:10]  # Remove duplicates and limit to 10
+    
+    async def _generate_enhanced_next_steps(self, skill_gap_report, career_roadmap, 
+                                          strengths_analysis, career_score_recommendations):
+        """Generate enhanced next steps combining all analytics"""
+        next_steps = []
+        
+        # Add priority actions from career score
+        if career_score_recommendations:
+            priority_actions = career_score_recommendations.get("priority_actions", [])
+            for action in priority_actions[:3]:
+                next_steps.append(action.get("action", ""))
+        
+        # Add improvement actions
+        if strengths_analysis:
+            improvement_areas = strengths_analysis.get("improvement_areas", {}).get("areas", [])
+            for area in improvement_areas[:2]:
+                if area.get("type") == "skill_improvement":
+                    next_steps.append(f"Start improving {area.get('skill_name')} through targeted practice")
+        
+        # Add roadmap-based next steps
+        if career_roadmap and hasattr(career_roadmap, 'nodes'):
+            milestone_nodes = [node for node in career_roadmap.nodes if node.node_type == "milestone"]
+            if milestone_nodes:
+                first_milestone = milestone_nodes[0]
+                next_steps.append(f"Work towards: {first_milestone.title}")
+        
+        return list(set(next_steps))[:8]  # Remove duplicates and limit to 8
+    
+    def _determine_role_level(self, role: str) -> str:
+        """Determine role level from role title"""
+        role_lower = role.lower()
+        if any(term in role_lower for term in ["director", "vp", "vice president"]):
+            return "executive"
+        elif any(term in role_lower for term in ["manager", "lead", "principal"]):
+            return "lead"
+        elif "senior" in role_lower:
+            return "senior"
+        elif any(term in role_lower for term in ["junior", "entry", "associate"]):
+            return "junior"
+        else:
+            return "mid"
+    
+    def _determine_career_stage(self, experience_years: int) -> str:
+        """Determine career stage based on experience"""
+        if experience_years < 2:
+            return "early_career"
+        elif experience_years < 5:
+            return "mid_career"
+        elif experience_years < 10:
+            return "senior_career"
+        else:
+            return "executive_career"
+    
+    async def _get_skill_market_demand(self, skill_name: str) -> float:
+        """Get market demand score for a skill (simulated)"""
+        # This would typically query market data APIs
+        # For now, return simulated demand scores
+        high_demand_skills = ["python", "react", "aws", "kubernetes", "docker", "javascript", "typescript"]
+        medium_demand_skills = ["java", "c++", "angular", "vue", "postgresql", "mongodb"]
+        
+        skill_lower = skill_name.lower()
+        if skill_lower in high_demand_skills:
+            return 0.8
+        elif skill_lower in medium_demand_skills:
+            return 0.6
+        else:
+            return 0.4
     
     async def _get_learning_resources(self, skill_name: str) -> List[Dict[str, Any]]:
         """Get recommended learning resources for skill"""

@@ -31,11 +31,11 @@ class GitHubRepository(BaseModel):
 class GitHubProfile(BaseModel):
     """GitHub user profile data model."""
     username: str
-    name: Optional[str]
-    bio: Optional[str]
-    company: Optional[str]
-    location: Optional[str]
-    email: Optional[str]
+    name: Optional[str] = None
+    bio: Optional[str] = None
+    company: Optional[str] = None
+    location: Optional[str] = None
+    email: Optional[str] = None
     public_repos: int
     followers: int
     following: int

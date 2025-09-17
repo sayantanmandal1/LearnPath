@@ -10,6 +10,8 @@ from .github_client import GitHubClient, GitHubProfile
 from .leetcode_scraper import LeetCodeScraper, LeetCodeProfile
 from .linkedin_scraper import LinkedInScraper, LinkedInProfile
 from .data_validator import DataValidator, ValidationResult, DataQuality
+from .profile_merger import ProfileMerger, MergedProfile
+from .circuit_breaker import circuit_breaker_manager, CircuitBreakerError
 from .base_client import APIError, RateLimitError
 
 
@@ -32,6 +34,7 @@ class ProfileExtractionResult(BaseModel):
     github_profile: Optional[Dict[str, Any]] = None
     leetcode_profile: Optional[Dict[str, Any]] = None
     linkedin_profile: Optional[Dict[str, Any]] = None
+    merged_profile: Optional[Dict[str, Any]] = None
     validation_results: Dict[str, ValidationResult] = {}
     errors: Dict[str, str] = {}
     warnings: List[str] = []
@@ -53,6 +56,7 @@ class ExternalAPIIntegrationService:
         self.leetcode_scraper = LeetCodeScraper()
         self.linkedin_scraper = LinkedInScraper()
         self.data_validator = DataValidator()
+        self.profile_merger = ProfileMerger()
         self.enable_caching = enable_caching
         self.cache_ttl_seconds = cache_ttl_seconds
         self._cache: Dict[str, Tuple[Any, datetime]] = {}
@@ -180,6 +184,21 @@ class ExternalAPIIntegrationService:
                 result.warnings.append("All profile extractions failed, but service continued gracefully")
                 result.success = True  # Allow graceful degradation
             
+            # Generate merged profile if we have any successful extractions
+            if result.success and len(result.sources_successful) > 0:
+                try:
+                    merged_profile = self.profile_merger.merge_profiles(
+                        github_profile=result.github_profile,
+                        leetcode_profile=result.leetcode_profile,
+                        linkedin_profile=result.linkedin_profile,
+                        validation_results=result.validation_results
+                    )
+                    result.merged_profile = merged_profile.dict()
+                    logger.info(f"Successfully merged profile data from {len(result.sources_successful)} sources")
+                except Exception as e:
+                    logger.warning(f"Failed to merge profile data: {str(e)}")
+                    result.warnings.append(f"Profile merging failed: {str(e)}")
+            
         except asyncio.TimeoutError:
             result.errors["general"] = f"Profile extraction timed out after {request.timeout_seconds} seconds"
             logger.error(f"Profile extraction timeout: {request.timeout_seconds}s")
@@ -210,30 +229,67 @@ class ExternalAPIIntegrationService:
                 logger.info(f"Using cached GitHub profile for {username}")
                 return cached_data
         
-        try:
-            async with self.github_client as client:
-                profile = await client.get_user_profile(username)
-                profile_dict = profile.dict()
+        max_retries = 3
+        base_delay = 2.0
+        
+        for attempt in range(max_retries):
+            try:
+                # Use circuit breaker for GitHub API calls
+                github_breaker = circuit_breaker_manager.get_breaker("github")
+                
+                async def github_call():
+                    async with self.github_client as client:
+                        profile = await client.get_user_profile(username)
+                        return profile.dict()
+                
+                profile_dict = await github_breaker.call(github_call)
                 
                 # Cache result
                 if self.enable_caching:
                     self._cache[cache_key] = (profile_dict, datetime.utcnow())
                 
                 return profile_dict
+                    
+            except (RateLimitError, CircuitBreakerError) as e:
+                if attempt == max_retries - 1:
+                    logger.warning(f"GitHub service unavailable for {username} after {max_retries} attempts: {str(e)}")
+                    raise APIError(f"GitHub service temporarily unavailable. Please try again later.")
                 
-        except RateLimitError as e:
-            logger.warning(f"GitHub rate limit exceeded for {username}: {e.message}")
-            raise APIError(f"GitHub rate limit exceeded. Please try again later.")
+                # Calculate exponential backoff delay
+                delay = base_delay * (2 ** attempt)
+                if isinstance(e, RateLimitError):
+                    retry_after = getattr(e, 'retry_after', delay)
+                    wait_time = max(delay, retry_after) if retry_after else delay
+                else:
+                    wait_time = delay
+                
+                logger.info(f"GitHub service issue, waiting {wait_time}s before retry {attempt + 1}/{max_retries}")
+                await asyncio.sleep(wait_time)
+                continue
+            
+            except APIError as e:
+                if e.status_code == 404:
+                    raise APIError(f"GitHub user '{username}' not found", status_code=404)
+                elif e.status_code in [500, 502, 503, 504] and attempt < max_retries - 1:
+                    # Retry on server errors
+                    delay = base_delay * (2 ** attempt)
+                    logger.info(f"GitHub server error, retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    raise APIError(f"GitHub API error: {e.message}", status_code=e.status_code)
+            
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"Unexpected error extracting GitHub profile, retrying in {delay}s: {str(e)}")
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    logger.error(f"Failed to extract GitHub profile for {username} after {max_retries} attempts: {str(e)}")
+                    raise APIError(f"Failed to extract GitHub profile: {str(e)}")
         
-        except APIError as e:
-            if e.status_code == 404:
-                raise APIError(f"GitHub user '{username}' not found")
-            else:
-                raise APIError(f"GitHub API error: {e.message}")
-        
-        except Exception as e:
-            logger.error(f"Unexpected error extracting GitHub profile for {username}: {str(e)}")
-            raise APIError(f"Failed to extract GitHub profile: {str(e)}")
+        return None
     
     async def _extract_leetcode_profile_safe(self, username: str) -> Optional[Dict[str, Any]]:
         """Safely extract LeetCode profile with error handling."""
@@ -246,26 +302,60 @@ class ExternalAPIIntegrationService:
                 logger.info(f"Using cached LeetCode profile for {username}")
                 return cached_data
         
-        try:
-            async with self.leetcode_scraper as scraper:
-                profile = await scraper.get_user_profile(username)
-                profile_dict = profile.dict()
+        max_retries = 3
+        base_delay = 3.0  # Longer delay for LeetCode due to anti-bot measures
+        
+        for attempt in range(max_retries):
+            try:
+                # Use circuit breaker for LeetCode API calls
+                leetcode_breaker = circuit_breaker_manager.get_breaker("leetcode")
+                
+                async def leetcode_call():
+                    async with self.leetcode_scraper as scraper:
+                        profile = await scraper.get_user_profile(username)
+                        return profile.dict()
+                
+                profile_dict = await leetcode_breaker.call(leetcode_call)
                 
                 # Cache result
                 if self.enable_caching:
                     self._cache[cache_key] = (profile_dict, datetime.utcnow())
                 
                 return profile_dict
-                
-        except APIError as e:
-            if e.status_code == 404:
-                raise APIError(f"LeetCode user '{username}' not found")
-            else:
-                raise APIError(f"LeetCode scraping error: {e.message}")
+                    
+            except (APIError, CircuitBreakerError) as e:
+                if isinstance(e, APIError) and e.status_code == 404:
+                    raise APIError(f"LeetCode user '{username}' not found", status_code=404)
+                elif (isinstance(e, APIError) and (e.status_code == 429 or "rate limit" in str(e).lower())) or isinstance(e, CircuitBreakerError):
+                    if attempt == max_retries - 1:
+                        logger.warning(f"LeetCode service unavailable for {username} after {max_retries} attempts: {str(e)}")
+                        raise APIError(f"LeetCode service temporarily unavailable. Please try again later.")
+                    
+                    # Exponential backoff with longer delays for LeetCode
+                    delay = base_delay * (2 ** attempt)
+                    logger.info(f"LeetCode service issue, waiting {delay}s before retry {attempt + 1}/{max_retries}")
+                    await asyncio.sleep(delay)
+                    continue
+                elif isinstance(e, APIError) and e.status_code in [500, 502, 503, 504] and attempt < max_retries - 1:
+                    # Retry on server errors
+                    delay = base_delay * (2 ** attempt)
+                    logger.info(f"LeetCode server error, retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    raise APIError(f"LeetCode scraping error: {str(e)}", status_code=getattr(e, 'status_code', None))
+            
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"Unexpected error extracting LeetCode profile, retrying in {delay}s: {str(e)}")
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    logger.error(f"Failed to extract LeetCode profile for {username} after {max_retries} attempts: {str(e)}")
+                    raise APIError(f"Failed to extract LeetCode profile: {str(e)}")
         
-        except Exception as e:
-            logger.error(f"Unexpected error extracting LeetCode profile for {username}: {str(e)}")
-            raise APIError(f"Failed to extract LeetCode profile: {str(e)}")
+        return None
     
     async def _extract_linkedin_profile_safe(self, profile_url: str) -> Optional[Dict[str, Any]]:
         """Safely extract LinkedIn profile with error handling."""
@@ -278,31 +368,63 @@ class ExternalAPIIntegrationService:
                 logger.info(f"Using cached LinkedIn profile for {profile_url}")
                 return cached_data
         
-        try:
-            async with self.linkedin_scraper as scraper:
-                profile = await scraper.get_profile_safely(profile_url)
-                if profile:
-                    profile_dict = profile.dict()
-                    
-                    # Cache result
-                    if self.enable_caching:
-                        self._cache[cache_key] = (profile_dict, datetime.utcnow())
-                    
-                    return profile_dict
-                else:
-                    raise APIError("LinkedIn profile extraction returned no data")
-                
-        except APIError as e:
-            if e.status_code == 404:
-                raise APIError(f"LinkedIn profile not found or not accessible: {profile_url}")
-            elif e.status_code == 429:
-                raise APIError("LinkedIn rate limit exceeded. Please try again later.")
-            else:
-                raise APIError(f"LinkedIn scraping error: {e.message}")
+        max_retries = 2  # Conservative retry count for LinkedIn
+        base_delay = 5.0  # Longer delay to respect LinkedIn's ToS
         
-        except Exception as e:
-            logger.error(f"Unexpected error extracting LinkedIn profile for {profile_url}: {str(e)}")
-            raise APIError(f"Failed to extract LinkedIn profile: {str(e)}")
+        for attempt in range(max_retries):
+            try:
+                # Use circuit breaker for LinkedIn scraping
+                linkedin_breaker = circuit_breaker_manager.get_breaker("linkedin")
+                
+                async def linkedin_call():
+                    async with self.linkedin_scraper as scraper:
+                        profile = await scraper.get_profile_safely(profile_url)
+                        if profile:
+                            return profile.dict()
+                        else:
+                            raise APIError("LinkedIn profile extraction returned no data")
+                
+                profile_dict = await linkedin_breaker.call(linkedin_call)
+                
+                # Cache result
+                if self.enable_caching:
+                    self._cache[cache_key] = (profile_dict, datetime.utcnow())
+                
+                return profile_dict
+                        
+            except (APIError, CircuitBreakerError) as e:
+                if isinstance(e, APIError) and e.status_code == 404:
+                    raise APIError(f"LinkedIn profile not found or not accessible: {profile_url}", status_code=404)
+                elif (isinstance(e, APIError) and (e.status_code in [429, 999] or "rate limit" in str(e).lower())) or isinstance(e, CircuitBreakerError):
+                    if attempt == max_retries - 1:
+                        logger.warning(f"LinkedIn service unavailable for {profile_url} after {max_retries} attempts: {str(e)}")
+                        raise APIError("LinkedIn service temporarily unavailable. Please try again later.")
+                    
+                    # Longer delays for LinkedIn due to strict rate limiting
+                    delay = base_delay * (2 ** attempt)
+                    logger.info(f"LinkedIn service issue, waiting {delay}s before retry {attempt + 1}/{max_retries}")
+                    await asyncio.sleep(delay)
+                    continue
+                elif isinstance(e, APIError) and e.status_code in [500, 502, 503, 504] and attempt < max_retries - 1:
+                    # Retry on server errors
+                    delay = base_delay * (2 ** attempt)
+                    logger.info(f"LinkedIn server error, retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    raise APIError(f"LinkedIn scraping error: {str(e)}", status_code=getattr(e, 'status_code', None))
+            
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"Unexpected error extracting LinkedIn profile, retrying in {delay}s: {str(e)}")
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    logger.error(f"Failed to extract LinkedIn profile for {profile_url} after {max_retries} attempts: {str(e)}")
+                    raise APIError(f"Failed to extract LinkedIn profile: {str(e)}")
+        
+        return None
     
     async def validate_profile_sources(
         self,
@@ -395,3 +517,30 @@ class ExternalAPIIntegrationService:
             "expired_entries": expired_entries,
             "cache_ttl_seconds": self.cache_ttl_seconds
         }
+    
+    def get_circuit_breaker_stats(self) -> Dict[str, Any]:
+        """Get circuit breaker statistics for all services."""
+        stats = circuit_breaker_manager.get_all_stats()
+        return {
+            service: {
+                "state": breaker_stats.state.value,
+                "failure_count": breaker_stats.failure_count,
+                "success_count": breaker_stats.success_count,
+                "total_requests": breaker_stats.total_requests,
+                "total_failures": breaker_stats.total_failures,
+                "total_successes": breaker_stats.total_successes,
+                "last_failure_time": breaker_stats.last_failure_time.isoformat() if breaker_stats.last_failure_time else None,
+                "last_success_time": breaker_stats.last_success_time.isoformat() if breaker_stats.last_success_time else None
+            }
+            for service, breaker_stats in stats.items()
+        }
+    
+    async def reset_circuit_breakers(self):
+        """Reset all circuit breakers."""
+        await circuit_breaker_manager.reset_all()
+        logger.info("All circuit breakers have been reset")
+    
+    async def reset_circuit_breaker(self, service: str):
+        """Reset a specific circuit breaker."""
+        await circuit_breaker_manager.reset_breaker(service)
+        logger.info(f"Circuit breaker for {service} has been reset")

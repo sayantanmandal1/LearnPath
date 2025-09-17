@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '004_add_security_privacy_tables'
-down_revision = '003_seed_skill_taxonomy'
+down_revision = '003'
 branch_labels = None
 depends_on = None
 

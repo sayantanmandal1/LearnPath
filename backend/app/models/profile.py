@@ -50,6 +50,57 @@ class UserProfile(Base):
         nullable=True
     )
     
+    # Frontend analyze page fields
+    industry: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True
+    )
+    desired_role: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True
+    )
+    career_goals: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True
+    )
+    timeframe: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True
+    )
+    salary_expectation: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True
+    )
+    education: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True
+    )
+    certifications: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True
+    )
+    languages: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True
+    )
+    work_type: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True
+    )
+    company_size: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True
+    )
+    work_culture: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True
+    )
+    benefits: Mapped[Optional[dict]] = mapped_column(
+        JSON,
+        nullable=True,
+        comment="Preferred benefits as JSON array"
+    )
+    
     # Platform IDs
     github_username: Mapped[Optional[str]] = mapped_column(
         String(100),
@@ -95,6 +146,16 @@ class UserProfile(Base):
         JSON,
         nullable=True,
         comment="Identified skill gaps for target roles"
+    )
+    
+    # Profile analytics and scoring
+    profile_score: Mapped[Optional[float]] = mapped_column(
+        nullable=True,
+        comment="Overall profile score (0-100)"
+    )
+    completeness_score: Mapped[Optional[float]] = mapped_column(
+        nullable=True,
+        comment="Profile completeness score (0-100)"
     )
     
     # Metadata
