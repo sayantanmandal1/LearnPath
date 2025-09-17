@@ -435,7 +435,7 @@ async def get_comprehensive_market_analysis(
 # Data Export Endpoints
 @router.get("/export/recommendations/{format}")
 async def export_recommendations(
-    format: str = Path(..., regex="^(json|csv|pdf)$", description="Export format"),
+    format: str = Path(..., pattern="^(json|csv|pdf)$", description="Export format"),
     recommendation_type: str = Query("career", description="Type of recommendations to export"),
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),

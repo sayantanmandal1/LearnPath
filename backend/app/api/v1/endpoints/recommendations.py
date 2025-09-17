@@ -419,7 +419,7 @@ async def get_job_recommendations(
 
 @router.post("/jobs/bulk-match")
 async def bulk_job_matching(
-    job_ids: List[str] = Field(..., description="List of job IDs to match against user profile"),
+    request: dict,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -430,6 +430,9 @@ async def bulk_job_matching(
     is interested in, providing detailed match analysis for each.
     """
     try:
+        job_ids = request.get("job_ids", [])
+        if not job_ids or not isinstance(job_ids, list):
+            raise HTTPException(status_code=400, detail="job_ids must be a non-empty list")
         if len(job_ids) > 20:
             raise HTTPException(status_code=400, detail="Maximum 20 job IDs allowed per request")
         

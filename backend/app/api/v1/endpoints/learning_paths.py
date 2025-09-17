@@ -16,7 +16,7 @@ import logging
 from app.schemas.learning_path import (
     LearningPathRequest, LearningPathResponse, LearningPath,
     ProjectRecommendation, LearningProgress, DifficultyLevel,
-    ResourceProvider, LearningPathUpdate
+    ResourceProvider, LearningPathUpdate, LearningResource
 )
 from app.models.user import User
 from app.services.learning_path_service import LearningPathService

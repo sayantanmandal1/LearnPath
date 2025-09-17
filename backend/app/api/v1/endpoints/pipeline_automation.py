@@ -307,7 +307,7 @@ async def get_backup_history(limit: int = 20):
 
 
 @router.post("/backup/{backup_id}/restore")
-async def restore_from_backup(backup_id: str, components: List[str] = None, background_tasks: BackgroundTasks):
+async def restore_from_backup(backup_id: str, background_tasks: BackgroundTasks, components: List[str] = None):
     """Restore system from backup"""
     try:
         backup_manager = BackupRecoveryManager()

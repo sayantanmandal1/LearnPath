@@ -219,10 +219,13 @@ async def get_privacy_requests(
         )
 
 
+class VerificationRequest(BaseModel):
+    verification_token: str = Field(..., description="Verification token from email")
+
 @router.post("/request/{request_id}/verify")
 async def verify_privacy_request(
     request_id: str,
-    verification_token: str = Field(..., description="Verification token from email"),
+    request: VerificationRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Verify and process a privacy request"""
@@ -231,7 +234,7 @@ async def verify_privacy_request(
         privacy_request = await privacy_service.process_privacy_request(
             db=db,
             request_id=request_id,
-            verification_token=verification_token
+            verification_token=request.verification_token
         )
         
         return {
@@ -304,15 +307,18 @@ async def export_user_data(
         )
 
 
+class DeleteAccountRequest(BaseModel):
+    confirmation: str = Field(..., description="Type 'DELETE' to confirm")
+
 @router.delete("/delete-account")
 async def delete_user_account(
-    confirmation: str = Field(..., description="Type 'DELETE' to confirm"),
+    request: DeleteAccountRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete user account and all associated data (GDPR Article 17 - Right to Erasure)"""
     
-    if confirmation != "DELETE":
+    if request.confirmation != "DELETE":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Account deletion must be confirmed by typing 'DELETE'"

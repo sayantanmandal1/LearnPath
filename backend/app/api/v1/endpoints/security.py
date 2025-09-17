@@ -318,10 +318,13 @@ async def get_user_security_info(
         )
 
 
+class SecurityIncidentReport(BaseModel):
+    incident_type: str = Field(..., description="Type of security incident")
+    description: str = Field(..., description="Description of the incident")
+
 @router.post("/report-incident")
 async def report_security_incident(
-    incident_type: str = Field(..., description="Type of security incident"),
-    description: str = Field(..., description="Description of the incident"),
+    request: SecurityIncidentReport,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -332,13 +335,13 @@ async def report_security_incident(
         await audit_logger.log_security_event(
             db=db,
             event_type=AuditEventType.SUSPICIOUS_ACTIVITY,
-            message=f"User reported security incident: {incident_type}",
+            message=f"User reported security incident: {request.incident_type}",
             ip_address="user_reported",
             severity=AuditSeverity.MEDIUM,
             user_id=str(current_user.id),
             details={
-                "incident_type": incident_type,
-                "description": description,
+                "incident_type": request.incident_type,
+                "description": request.description,
                 "reported_by": str(current_user.id),
                 "reported_at": datetime.utcnow().isoformat()
             }
