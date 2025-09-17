@@ -722,7 +722,7 @@ class RecommendationService:
             List of job matches with analysis
         """
         try:
-            job_repo = JobRepository(db)
+            job_repo = JobRepository()
             
             # Build query with filters
             query_filters = {}
@@ -733,6 +733,10 @@ class RecommendationService:
                     query_filters['experience_level'] = filters['experience_level']
                 if filters.get('remote_type'):
                     query_filters['remote_type'] = filters['remote_type']
+                if filters.get('min_salary'):
+                    query_filters['min_salary'] = filters['min_salary']
+                if filters.get('max_salary'):
+                    query_filters['max_salary'] = filters['max_salary']
             
             # Get job postings
             jobs = await job_repo.search_jobs(
@@ -756,12 +760,19 @@ class RecommendationService:
                     'job_id': job.id,
                     'job_title': job.title,
                     'company': job.company,
-                    'location': job.location,
+                    'location': job.location or 'Not specified',
+                    'remote_type': job.remote_type,
+                    'employment_type': job.employment_type,
+                    'experience_level': job.experience_level,
                     'match_score': round(match_score, 3),
                     'match_percentage': round(match_score * 100, 1),
                     'salary_min': job.salary_min,
                     'salary_max': job.salary_max,
-                    'posted_date': job.posted_date.isoformat() if job.posted_date else None
+                    'salary_currency': job.salary_currency or 'USD',
+                    'posted_date': job.posted_date.isoformat() if job.posted_date else None,
+                    'source_url': job.source_url,
+                    'description': job.description[:500] + '...' if len(job.description) > 500 else job.description,
+                    'required_skills': list(job_skills.keys()) if job_skills else []
                 }
                 
                 # Add skill gap analysis if requested
@@ -777,7 +788,8 @@ class RecommendationService:
                         'weak_skills': gap_analysis.weak_skills,
                         'strong_skills': gap_analysis.strong_skills,
                         'overall_readiness': gap_analysis.overall_readiness,
-                        'readiness_percentage': round(gap_analysis.overall_readiness * 100, 1)
+                        'readiness_percentage': round(gap_analysis.overall_readiness * 100, 1),
+                        'priority_skills': gap_analysis.priority_skills
                     })
                 
                 job_matches.append(match_data)
@@ -790,3 +802,117 @@ class RecommendationService:
         except Exception as e:
             logger.error(f"Error getting advanced job matches: {e}")
             raise ServiceException(f"Failed to get job matches: {str(e)}")
+    
+    async def get_job_recommendations_with_ml(self, user_id: str, db: AsyncSession,
+                                            filters: Dict[str, Any] = None,
+                                            n_recommendations: int = 10) -> List[Dict[str, Any]]:
+        """
+        Get job recommendations using ML algorithms with enhanced matching.
+        
+        Args:
+            user_id: User identifier
+            db: Database session
+            filters: Optional filters for job search
+            n_recommendations: Number of recommendations to return
+            
+        Returns:
+            List of job recommendations with detailed analysis
+        """
+        try:
+            # Ensure models are trained
+            await self.initialize_and_train_models(db)
+            
+            # Get user profile
+            profile_repo = ProfileRepository()
+            user_profile = await profile_repo.get_by_user_id(db, user_id)
+            
+            if not user_profile:
+                raise ServiceException("User profile not found")
+            
+            # Get job matches using advanced matching
+            job_matches = await self.get_advanced_job_matches(
+                user_profile=user_profile,
+                filters=filters,
+                match_threshold=0.3,  # Lower threshold to get more candidates
+                include_skill_gaps=True,
+                db=db
+            )
+            
+            # If we have ML models trained, enhance with collaborative filtering
+            if self.model_trained:
+                try:
+                    # Get collaborative filtering recommendations
+                    ml_recommendations = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        self.recommendation_engine.recommend_careers,
+                        user_id, {
+                            'id': user_id,
+                            'current_role': user_profile.current_role or '',
+                            'dream_job': user_profile.dream_job or '',
+                            'skills': list((user_profile.skills or {}).keys()),
+                            'experience_years': user_profile.experience_years or 0
+                        }, n_recommendations * 2
+                    )
+                    
+                    # Combine content-based and collaborative filtering results
+                    job_matches = self._combine_recommendation_results(job_matches, ml_recommendations)
+                    
+                except Exception as ml_error:
+                    logger.warning(f"ML recommendation failed, using content-based only: {ml_error}")
+            
+            # Apply additional ranking based on user preferences
+            job_matches = self._rank_job_recommendations(job_matches, user_profile)
+            
+            # Return top N recommendations
+            return job_matches[:n_recommendations]
+            
+        except Exception as e:
+            logger.error(f"Error getting job recommendations with ML: {e}")
+            raise ServiceException(f"Failed to get job recommendations: {str(e)}")
+    
+    def _combine_recommendation_results(self, content_based: List[Dict], 
+                                      ml_based: List) -> List[Dict]:
+        """Combine content-based and ML-based recommendations."""
+        # For now, prioritize content-based results since they have actual job data
+        # In a full implementation, this would intelligently merge both approaches
+        return content_based
+    
+    def _rank_job_recommendations(self, job_matches: List[Dict], 
+                                user_profile: UserProfile) -> List[Dict]:
+        """Apply additional ranking based on user preferences."""
+        try:
+            # Add preference-based scoring
+            for match in job_matches:
+                preference_score = 0.0
+                
+                # Boost score for dream job matches
+                if user_profile.dream_job:
+                    dream_job_lower = user_profile.dream_job.lower()
+                    job_title_lower = match['job_title'].lower()
+                    if dream_job_lower in job_title_lower or job_title_lower in dream_job_lower:
+                        preference_score += 0.2
+                
+                # Boost score for location preferences
+                if user_profile.location and match.get('location'):
+                    if user_profile.location.lower() in match['location'].lower():
+                        preference_score += 0.1
+                
+                # Boost score for remote work preference
+                if user_profile.remote_work_preference and match.get('remote_type') == 'remote':
+                    preference_score += 0.15
+                
+                # Apply preference boost to match score
+                original_score = match['match_score']
+                boosted_score = min(1.0, original_score + preference_score)
+                match['match_score'] = round(boosted_score, 3)
+                match['match_percentage'] = round(boosted_score * 100, 1)
+                match['preference_boost'] = round(preference_score, 3)
+            
+            # Re-sort by updated match scores
+            job_matches.sort(key=lambda x: x['match_score'], reverse=True)
+            
+            return job_matches
+            
+        except Exception as e:
+            logger.warning(f"Error ranking job recommendations: {e}")
+            return job_matches

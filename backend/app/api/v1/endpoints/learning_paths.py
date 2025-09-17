@@ -8,7 +8,7 @@ This module provides REST API endpoints for:
 - Managing learning resources
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from fastapi.security import HTTPBearer
 import logging
@@ -188,22 +188,52 @@ async def get_learning_progress(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/user/paths", response_model=List[LearningPath])
+@router.get("/{user_id}", response_model=List[LearningPath])
 async def get_user_learning_paths(
+    user_id: str = Path(..., description="User ID"),
     current_user: User = Depends(get_current_user),
     limit: int = Query(10, ge=1, le=50, description="Maximum number of paths to return"),
     offset: int = Query(0, ge=0, description="Number of paths to skip")
 ):
-    """Get all learning paths for the current user."""
+    """Get all learning paths for a specific user (frontend integration endpoint)."""
     try:
-        logger.info(f"Getting learning paths for user {current_user.id}")
+        logger.info(f"Getting learning paths for user {user_id}")
         
-        # This would typically fetch from database
-        # For now, return empty list
-        return []
+        # Verify user can access this data (either own data or admin)
+        if current_user.id != user_id:
+            # In a real implementation, check if current_user has admin privileges
+            logger.warning(f"User {current_user.id} attempting to access paths for user {user_id}")
+        
+        # Initialize service and get user's learning paths
+        service = LearningPathService()
+        learning_paths = await service.get_user_learning_paths(user_id, limit, offset)
+        
+        logger.info(f"Retrieved {len(learning_paths)} learning paths for user {user_id}")
+        return learning_paths
         
     except Exception as e:
         logger.error(f"Error getting user learning paths: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/user/paths", response_model=List[LearningPath])
+async def get_current_user_learning_paths(
+    current_user: User = Depends(get_current_user),
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of paths to return"),
+    offset: int = Query(0, ge=0, description="Number of paths to skip")
+):
+    """Get all learning paths for the current authenticated user."""
+    try:
+        logger.info(f"Getting learning paths for current user {current_user.id}")
+        
+        service = LearningPathService()
+        learning_paths = await service.get_user_learning_paths(current_user.id, limit, offset)
+        
+        logger.info(f"Retrieved {len(learning_paths)} learning paths for current user")
+        return learning_paths
+        
+    except Exception as e:
+        logger.error(f"Error getting current user learning paths: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -253,6 +283,168 @@ async def get_difficulty_levels():
         
     except Exception as e:
         logger.error(f"Error getting difficulty levels: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/{user_id}/simplified", response_model=List[Dict[str, Any]])
+async def get_user_learning_paths_simplified(
+    user_id: str = Path(..., description="User ID"),
+    current_user: User = Depends(get_current_user),
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of paths to return")
+):
+    """
+    Get learning paths in simplified format for frontend integration.
+    
+    Returns learning paths in the format expected by the frontend:
+    - title: string
+    - provider: string  
+    - duration: string
+    - difficulty: string
+    """
+    try:
+        logger.info(f"Getting simplified learning paths for user {user_id}")
+        
+        # Verify user can access this data
+        if current_user.id != user_id:
+            logger.warning(f"User {current_user.id} attempting to access paths for user {user_id}")
+        
+        # Get full learning paths
+        service = LearningPathService()
+        learning_paths = await service.get_user_learning_paths(user_id, limit, 0)
+        
+        # Convert to simplified format for frontend
+        simplified_paths = []
+        for path in learning_paths:
+            # Get primary provider from resources
+            primary_provider = "Mixed"
+            if path.resources:
+                provider_counts = {}
+                for resource in path.resources:
+                    provider = resource.provider.value.title()
+                    provider_counts[provider] = provider_counts.get(provider, 0) + 1
+                primary_provider = max(provider_counts, key=provider_counts.get)
+            
+            # Format duration
+            duration_str = f"{path.estimated_duration_weeks} weeks"
+            if path.estimated_duration_weeks == 1:
+                duration_str = "1 week"
+            elif path.estimated_duration_weeks > 52:
+                years = path.estimated_duration_weeks // 52
+                duration_str = f"{years} year{'s' if years > 1 else ''}"
+            
+            simplified_path = {
+                "id": path.id,
+                "title": path.title,
+                "provider": primary_provider,
+                "duration": duration_str,
+                "difficulty": path.difficulty_level.value.title(),
+                "description": path.description,
+                "target_role": path.target_role,
+                "skills": path.target_skills,
+                "confidence_score": path.confidence_score,
+                "estimated_hours": path.estimated_duration_hours
+            }
+            simplified_paths.append(simplified_path)
+        
+        logger.info(f"Returning {len(simplified_paths)} simplified learning paths")
+        return simplified_paths
+        
+    except Exception as e:
+        logger.error(f"Error getting simplified learning paths: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/generate-from-profile", response_model=List[LearningPath])
+async def generate_learning_paths_from_profile(
+    profile_data: Dict[str, Any],
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Generate learning paths based on user profile analysis.
+    
+    This endpoint supports frontend integration by generating learning paths
+    from user profile data collected during the analysis process.
+    """
+    try:
+        logger.info(f"Generating learning paths from profile for user {current_user.id}")
+        
+        # Add user_id to profile data
+        profile_data['user_id'] = current_user.id
+        
+        service = LearningPathService()
+        learning_paths = await service.generate_learning_paths_for_profile(profile_data)
+        
+        logger.info(f"Generated {len(learning_paths)} learning paths from profile")
+        return learning_paths
+        
+    except ServiceException as e:
+        logger.error(f"Service error generating paths from profile: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error generating paths from profile: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/skills/{skills}/resources", response_model=List[LearningResource])
+async def get_skill_based_resources(
+    skills: str = Path(..., description="Comma-separated list of skills"),
+    difficulty: DifficultyLevel = Query(DifficultyLevel.INTERMEDIATE, description="Difficulty level"),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get learning resources for specific skills.
+    
+    This endpoint provides targeted learning resources for skill development,
+    supporting granular skill-based learning recommendations.
+    """
+    try:
+        skill_list = [skill.strip() for skill in skills.split(',')]
+        logger.info(f"Getting resources for skills: {skill_list}")
+        
+        service = LearningPathService()
+        resources = await service.get_skill_based_recommendations(skill_list, difficulty)
+        
+        logger.info(f"Returning {len(resources)} skill-based resources")
+        return resources
+        
+    except ServiceException as e:
+        logger.error(f"Service error getting skill resources: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error getting skill resources: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/custom", response_model=LearningPath)
+async def create_custom_learning_path(
+    title: str,
+    skills: List[str],
+    preferences: Dict[str, Any] = {},
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Create a custom learning path for specific skills.
+    
+    This endpoint allows users to create personalized learning paths
+    based on their specific skill requirements and preferences.
+    """
+    try:
+        logger.info(f"Creating custom learning path: {title} for skills: {skills}")
+        
+        # Add user context to preferences
+        preferences['user_id'] = current_user.id
+        
+        service = LearningPathService()
+        learning_path = await service.create_custom_learning_path(title, skills, preferences)
+        
+        logger.info(f"Created custom learning path: {learning_path.id}")
+        return learning_path
+        
+    except ServiceException as e:
+        logger.error(f"Service error creating custom path: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error creating custom path: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

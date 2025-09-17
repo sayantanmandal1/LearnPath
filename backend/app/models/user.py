@@ -6,43 +6,11 @@ from typing import Optional
 import uuid
 
 from sqlalchemy import Boolean, DateTime, String, Text
-from sqlalchemy.types import TypeDecorator, CHAR
-from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
-
-
-class UUID(TypeDecorator):
-    """Platform-independent UUID type."""
-    impl = CHAR
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        if dialect.name == 'postgresql':
-            return dialect.type_descriptor(PostgresUUID())
-        else:
-            return dialect.type_descriptor(CHAR(36))
-
-    def process_bind_param(self, value, dialect):
-        if value is None:
-            return value
-        elif dialect.name == 'postgresql':
-            return str(value)
-        else:
-            if not isinstance(value, uuid.UUID):
-                return str(value)
-            else:
-                return str(value)
-
-    def process_result_value(self, value, dialect):
-        if value is None:
-            return value
-        else:
-            if not isinstance(value, uuid.UUID):
-                return str(value)
-            return str(value)
 
 
 class User(Base):
@@ -51,7 +19,7 @@ class User(Base):
     __tablename__ = "users"
     
     id: Mapped[str] = mapped_column(
-        UUID(),
+        UUID(as_uuid=False),
         primary_key=True,
         default=lambda: str(uuid.uuid4()),
         index=True
@@ -109,13 +77,13 @@ class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
     
     id: Mapped[str] = mapped_column(
-        UUID(),
+        UUID(as_uuid=False),
         primary_key=True,
         default=lambda: str(uuid.uuid4()),
         index=True
     )
     user_id: Mapped[str] = mapped_column(
-        UUID(),
+        UUID(as_uuid=False),
         nullable=False,
         index=True
     )

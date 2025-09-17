@@ -2,7 +2,7 @@
 Authentication schemas for request/response models
 """
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from pydantic import BaseModel, EmailStr, Field, validator
 
@@ -53,6 +53,30 @@ class UserResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class UserWithProfileResponse(BaseModel):
+    """User response schema with profile data"""
+    id: str
+    email: str
+    full_name: Optional[str]
+    is_active: bool
+    is_verified: bool
+    created_at: datetime
+    last_login: Optional[datetime]
+    profile: Optional[Dict[str, Any]] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class TokenWithUserResponse(BaseModel):
+    """Token response schema with user data"""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int  # seconds
+    user: UserWithProfileResponse
 
 
 class PasswordChange(BaseModel):

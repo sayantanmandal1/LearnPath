@@ -35,57 +35,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Starting AI Career Recommender API", version=settings.VERSION)
     
     # Initialize database
-    await init_db()
-    logger.info("Database initialized")
-    
-    # Initialize Redis
-    await redis_manager.connect()
-    logger.info("Redis connected")
-    
-    # Start performance monitoring
-    await performance_monitor.collect_metrics()
-    logger.info("Performance monitoring started")
-    
-    # Start system monitoring
-    await system_monitor.start_monitoring()
-    logger.info("System monitoring started")
-    
-    # Start health monitoring for graceful degradation
-    await degradation_manager.start_health_monitoring()
-    logger.info("Health monitoring started")
-    
-    # Register external services for monitoring
-    degradation_manager.register_service("github", fallback_handler=None)
-    degradation_manager.register_service("leetcode", fallback_handler=None)
-    degradation_manager.register_service("linkedin", fallback_handler=None)
-    degradation_manager.register_service("job_scrapers", fallback_handler=None)
-    
-    # Initialize pipeline automation system
     try:
-        await initialize_pipeline_automation()
-        logger.info("Pipeline automation system initialized")
+        await init_db()
+        logger.info("Database initialized")
     except Exception as e:
-        logger.error("Failed to initialize pipeline automation", error=str(e))
-        # Continue startup even if pipeline automation fails
+        logger.warning("Database initialization failed, continuing", error=str(e))
+    
+    # Initialize Redis (optional)
+    if settings.REDIS_URL:
+        try:
+            await redis_manager.connect()
+            logger.info("Redis connected")
+        except Exception as e:
+            logger.warning("Redis connection failed, continuing without Redis", error=str(e))
     
     yield
     
     # Shutdown
-    # Shutdown pipeline automation system
-    try:
-        await shutdown_pipeline_automation()
-        logger.info("Pipeline automation system shut down")
-    except Exception as e:
-        logger.error("Failed to shutdown pipeline automation", error=str(e))
-    
-    await system_monitor.stop_monitoring()
-    logger.info("System monitoring stopped")
-    
-    await degradation_manager.stop_health_monitoring()
-    logger.info("Health monitoring stopped")
-    
-    await redis_manager.disconnect()
-    logger.info("Redis disconnected")
+    if settings.REDIS_URL:
+        try:
+            await redis_manager.disconnect()
+            logger.info("Redis disconnected")
+        except Exception as e:
+            logger.warning("Redis disconnect failed", error=str(e))
     
     logger.info("Shutting down AI Career Recommender API")
 
@@ -234,20 +206,21 @@ def create_application() -> FastAPI:
         ]
     )
 
-    # Add CORS middleware
+    # Add CORS middleware with proper configuration
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_origins=settings.CORS_ORIGINS if not settings.DEBUG else ["*"],
+        allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+        allow_methods=settings.CORS_ALLOW_METHODS,
+        allow_headers=settings.CORS_ALLOW_HEADERS,
     )
 
     # Add custom middleware (order matters - first added is outermost)
-    app.add_middleware(ErrorHandlerMiddleware)
-    app.add_middleware(LoggingMiddleware)
-    app.add_middleware(MetricsMiddleware)
-    app.add_middleware(RateLimitMiddleware)
+    try:
+        app.add_middleware(ErrorHandlerMiddleware)
+        app.add_middleware(LoggingMiddleware)
+    except Exception as e:
+        logger.warning("Failed to add some middleware, continuing", error=str(e))
 
     # Include API router
     app.include_router(api_router, prefix=settings.API_V1_STR)

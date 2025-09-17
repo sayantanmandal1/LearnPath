@@ -18,7 +18,8 @@ from app.core.security import (
     verify_token,
 )
 from app.models.user import RefreshToken, User
-from app.schemas.auth import TokenResponse, UserRegister, UserResponse
+from app.models.profile import UserProfile
+from app.schemas.auth import TokenResponse, UserRegister, UserResponse, UserWithProfileResponse, TokenWithUserResponse
 
 logger = structlog.get_logger()
 
@@ -101,6 +102,52 @@ class AuthService:
             expires_in=30 * 60,  # 30 minutes
         )
     
+    async def create_tokens_with_user(self, user: User, device_info: Optional[str] = None) -> TokenWithUserResponse:
+        """Create access and refresh tokens for user with user data"""
+        # Create tokens
+        tokens = await self.create_tokens(user, device_info)
+        
+        # Get user profile if exists
+        profile_data = None
+        stmt = select(UserProfile).where(UserProfile.user_id == user.id)
+        result = await self.db.execute(stmt)
+        profile = result.scalar_one_or_none()
+        
+        if profile:
+            profile_data = {
+                "id": profile.id,
+                "dream_job": profile.dream_job,
+                "experience_years": profile.experience_years,
+                "current_role": profile.current_role,
+                "location": profile.location,
+                "github_username": profile.github_username,
+                "leetcode_id": profile.leetcode_id,
+                "linkedin_url": profile.linkedin_url,
+                "skills": profile.skills,
+                "created_at": profile.created_at.isoformat() if profile.created_at else None,
+                "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
+            }
+        
+        # Create user response with profile
+        user_with_profile = UserWithProfileResponse(
+            id=user.id,
+            email=user.email,
+            full_name=user.full_name,
+            is_active=user.is_active,
+            is_verified=user.is_verified,
+            created_at=user.created_at,
+            last_login=user.last_login,
+            profile=profile_data
+        )
+        
+        return TokenWithUserResponse(
+            access_token=tokens.access_token,
+            refresh_token=tokens.refresh_token,
+            token_type=tokens.token_type,
+            expires_in=tokens.expires_in,
+            user=user_with_profile
+        )
+    
     async def refresh_tokens(self, refresh_token: str) -> TokenResponse:
         """Refresh access token using refresh token"""
         # Verify refresh token
@@ -135,6 +182,45 @@ class AuthService:
         
         # Create new tokens
         tokens = await self.create_tokens(user)
+        
+        logger.info("Tokens refreshed successfully", user_id=user.id)
+        
+        return tokens
+    
+    async def refresh_tokens_with_user(self, refresh_token: str) -> TokenWithUserResponse:
+        """Refresh access token using refresh token with user data"""
+        # Verify refresh token
+        user_id = verify_token(refresh_token, token_type="refresh")
+        if not user_id:
+            raise AuthenticationError("Invalid refresh token")
+        
+        # Check if refresh token exists and is not revoked
+        token_hash = generate_token_hash(refresh_token)
+        stmt = select(RefreshToken).where(
+            RefreshToken.token_hash == token_hash,
+            RefreshToken.user_id == user_id,
+            RefreshToken.is_revoked == False,
+            RefreshToken.expires_at > datetime.utcnow(),
+        )
+        result = await self.db.execute(stmt)
+        stored_token = result.scalar_one_or_none()
+        
+        if not stored_token:
+            raise AuthenticationError("Invalid or expired refresh token")
+        
+        # Get user
+        stmt = select(User).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
+        
+        if not user or not user.is_active:
+            raise AuthenticationError("User not found or inactive")
+        
+        # Revoke old refresh token
+        stored_token.is_revoked = True
+        
+        # Create new tokens with user data
+        tokens = await self.create_tokens_with_user(user)
         
         logger.info("Tokens refreshed successfully", user_id=user.id)
         

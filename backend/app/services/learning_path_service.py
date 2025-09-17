@@ -1436,3 +1436,476 @@ class LearningPathService:
         except Exception as e:
             logger.error(f"Error getting user learning paths: {e}")
             raise ServiceException(f"Failed to get user learning paths: {str(e)}")
+
+    async def get_user_learning_paths(self, user_id: str, limit: int = 10, offset: int = 0) -> List[LearningPath]:
+        """
+        Get learning paths for a specific user.
+        
+        This method supports frontend integration by returning learning paths
+        in the format expected by the frontend components.
+        """
+        try:
+            logger.info(f"Fetching learning paths for user {user_id}")
+            
+            # In a real implementation, this would fetch from database
+            # For now, generate sample learning paths that match frontend expectations
+            
+            sample_paths = [
+                LearningPath(
+                    title="Full Stack Web Development",
+                    description="Complete path to become a full-stack web developer",
+                    target_role="Full Stack Developer",
+                    target_skills=["javascript", "react", "node.js", "mongodb", "html", "css"],
+                    difficulty_level=DifficultyLevel.INTERMEDIATE,
+                    estimated_duration_weeks=16,
+                    estimated_duration_hours=320,
+                    milestones=[
+                        Milestone(
+                            title="Frontend Fundamentals",
+                            description="Learn HTML, CSS, and JavaScript basics",
+                            order=0,
+                            skills_to_acquire=["html", "css", "javascript"],
+                            estimated_duration_hours=80,
+                            completion_criteria=["Complete HTML/CSS course", "Build responsive website", "Master JavaScript fundamentals"]
+                        ),
+                        Milestone(
+                            title="React Development",
+                            description="Master React and modern frontend development",
+                            order=1,
+                            skills_to_acquire=["react", "jsx", "state_management"],
+                            estimated_duration_hours=100,
+                            completion_criteria=["Build React applications", "Understand component lifecycle", "Implement state management"]
+                        ),
+                        Milestone(
+                            title="Backend Development",
+                            description="Learn Node.js and server-side development",
+                            order=2,
+                            skills_to_acquire=["node.js", "express", "api_development"],
+                            estimated_duration_hours=80,
+                            completion_criteria=["Build REST APIs", "Implement authentication", "Database integration"]
+                        ),
+                        Milestone(
+                            title="Database & Deployment",
+                            description="Master databases and deployment strategies",
+                            order=3,
+                            skills_to_acquire=["mongodb", "deployment", "devops"],
+                            estimated_duration_hours=60,
+                            completion_criteria=["Design database schemas", "Deploy applications", "Monitor performance"]
+                        )
+                    ],
+                    resources=[
+                        LearningResource(
+                            title="The Complete JavaScript Course 2024",
+                            type=ResourceType.COURSE,
+                            provider=ResourceProvider.UDEMY,
+                            url="https://www.udemy.com/course/the-complete-javascript-course/",
+                            rating=4.7,
+                            duration_hours=69,
+                            cost=84.99,
+                            difficulty_level=DifficultyLevel.BEGINNER,
+                            skills_taught=["javascript"],
+                            certificate_available=True,
+                            quality_score=0.9
+                        ),
+                        LearningResource(
+                            title="React - The Complete Guide",
+                            type=ResourceType.COURSE,
+                            provider=ResourceProvider.UDEMY,
+                            url="https://www.udemy.com/course/react-the-complete-guide-incl-redux/",
+                            rating=4.6,
+                            duration_hours=48,
+                            cost=94.99,
+                            difficulty_level=DifficultyLevel.INTERMEDIATE,
+                            skills_taught=["react"],
+                            certificate_available=True,
+                            quality_score=0.9
+                        )
+                    ],
+                    confidence_score=0.85
+                ),
+                LearningPath(
+                    title="Data Science Fundamentals",
+                    description="Essential skills for data science and analytics",
+                    target_role="Data Scientist",
+                    target_skills=["python", "pandas", "numpy", "machine_learning", "statistics"],
+                    difficulty_level=DifficultyLevel.INTERMEDIATE,
+                    estimated_duration_weeks=12,
+                    estimated_duration_hours=240,
+                    milestones=[
+                        Milestone(
+                            title="Python for Data Science",
+                            description="Master Python programming for data analysis",
+                            order=0,
+                            skills_to_acquire=["python", "pandas", "numpy"],
+                            estimated_duration_hours=80,
+                            completion_criteria=["Complete Python course", "Data manipulation projects", "Statistical analysis"]
+                        ),
+                        Milestone(
+                            title="Machine Learning Basics",
+                            description="Introduction to machine learning algorithms",
+                            order=1,
+                            skills_to_acquire=["machine_learning", "scikit-learn"],
+                            estimated_duration_hours=100,
+                            completion_criteria=["Implement ML algorithms", "Model evaluation", "Feature engineering"]
+                        ),
+                        Milestone(
+                            title="Data Visualization",
+                            description="Create compelling data visualizations",
+                            order=2,
+                            skills_to_acquire=["matplotlib", "seaborn", "plotly"],
+                            estimated_duration_hours=60,
+                            completion_criteria=["Create interactive dashboards", "Statistical plots", "Presentation skills"]
+                        )
+                    ],
+                    resources=[
+                        LearningResource(
+                            title="Python for Data Science and Machine Learning",
+                            type=ResourceType.COURSE,
+                            provider=ResourceProvider.UDEMY,
+                            url="https://www.udemy.com/course/python-for-data-science-and-machine-learning-bootcamp/",
+                            rating=4.6,
+                            duration_hours=25,
+                            cost=89.99,
+                            difficulty_level=DifficultyLevel.INTERMEDIATE,
+                            skills_taught=["python", "machine_learning"],
+                            certificate_available=True,
+                            quality_score=0.85
+                        )
+                    ],
+                    confidence_score=0.80
+                ),
+                LearningPath(
+                    title="Cloud Computing with AWS",
+                    description="Master cloud computing and AWS services",
+                    target_role="Cloud Engineer",
+                    target_skills=["aws", "docker", "kubernetes", "terraform", "devops"],
+                    difficulty_level=DifficultyLevel.ADVANCED,
+                    estimated_duration_weeks=14,
+                    estimated_duration_hours=280,
+                    milestones=[
+                        Milestone(
+                            title="AWS Fundamentals",
+                            description="Learn core AWS services and concepts",
+                            order=0,
+                            skills_to_acquire=["aws", "ec2", "s3", "iam"],
+                            estimated_duration_hours=100,
+                            completion_criteria=["AWS certification", "Deploy applications", "Security best practices"]
+                        ),
+                        Milestone(
+                            title="Containerization",
+                            description="Master Docker and container orchestration",
+                            order=1,
+                            skills_to_acquire=["docker", "kubernetes"],
+                            estimated_duration_hours=120,
+                            completion_criteria=["Container deployment", "Kubernetes clusters", "Service mesh"]
+                        ),
+                        Milestone(
+                            title="Infrastructure as Code",
+                            description="Automate infrastructure with Terraform",
+                            order=2,
+                            skills_to_acquire=["terraform", "infrastructure_automation"],
+                            estimated_duration_hours=60,
+                            completion_criteria=["Terraform modules", "CI/CD pipelines", "Monitoring setup"]
+                        )
+                    ],
+                    resources=[
+                        LearningResource(
+                            title="AWS Certified Solutions Architect",
+                            type=ResourceType.COURSE,
+                            provider=ResourceProvider.UDEMY,
+                            url="https://www.udemy.com/course/aws-certified-solutions-architect-associate/",
+                            rating=4.7,
+                            duration_hours=30,
+                            cost=94.99,
+                            difficulty_level=DifficultyLevel.INTERMEDIATE,
+                            skills_taught=["aws"],
+                            certificate_available=True,
+                            quality_score=0.9
+                        )
+                    ],
+                    confidence_score=0.75
+                )
+            ]
+            
+            # Apply pagination
+            start_idx = offset
+            end_idx = offset + limit
+            paginated_paths = sample_paths[start_idx:end_idx]
+            
+            logger.info(f"Returning {len(paginated_paths)} learning paths for user {user_id}")
+            return paginated_paths
+            
+        except Exception as e:
+            logger.error(f"Error fetching user learning paths: {str(e)}")
+            raise ServiceException(f"Failed to fetch user learning paths: {str(e)}")
+
+    async def generate_learning_paths_for_profile(self, user_profile: Dict[str, Any]) -> List[LearningPath]:
+        """
+        Generate learning paths based on user profile analysis.
+        
+        This method creates personalized learning paths based on:
+        - Current skills and experience level
+        - Career goals and target role
+        - Learning preferences and time availability
+        - Market demand for skills
+        """
+        try:
+            logger.info(f"Generating learning paths for user profile")
+            
+            # Extract key information from profile
+            current_skills = user_profile.get('skills', [])
+            target_role = user_profile.get('target_role', '')
+            experience_level = user_profile.get('experience_level', 'intermediate')
+            time_commitment = user_profile.get('time_commitment_hours_per_week', 10)
+            learning_style = user_profile.get('learning_style', 'mixed')
+            budget_limit = user_profile.get('budget_limit')
+            
+            # Create learning path request
+            request = LearningPathRequest(
+                user_id=user_profile.get('user_id', 'unknown'),
+                target_role=target_role,
+                target_skills=user_profile.get('target_skills', []),
+                current_skills={skill: 0.5 for skill in current_skills},  # Default to intermediate level
+                time_commitment_hours_per_week=time_commitment,
+                budget_limit=budget_limit,
+                include_free_only=budget_limit is None or budget_limit <= 0,
+                difficulty_preference=DifficultyLevel(experience_level) if experience_level in ['beginner', 'intermediate', 'advanced'] else None
+            )
+            
+            # Generate comprehensive learning paths
+            response = await self.generate_learning_paths(request)
+            
+            return response.learning_paths
+            
+        except Exception as e:
+            logger.error(f"Error generating learning paths for profile: {str(e)}")
+            raise ServiceException(f"Failed to generate learning paths for profile: {str(e)}")
+
+    async def get_skill_based_recommendations(self, skills: List[str], difficulty: DifficultyLevel = DifficultyLevel.INTERMEDIATE) -> List[LearningResource]:
+        """
+        Get skill-based learning resource recommendations.
+        
+        This method provides targeted learning resources for specific skills,
+        supporting the frontend's need for granular skill development.
+        """
+        try:
+            logger.info(f"Getting skill-based recommendations for: {skills}")
+            
+            all_resources = []
+            
+            # Generate resources for each skill
+            for skill in skills:
+                skill_resources = await self._get_skill_specific_resources(skill, difficulty)
+                all_resources.extend(skill_resources)
+            
+            # Remove duplicates and sort by quality
+            unique_resources = {}
+            for resource in all_resources:
+                key = (resource.title, resource.provider)
+                if key not in unique_resources or resource.quality_score > unique_resources[key].quality_score:
+                    unique_resources[key] = resource
+            
+            sorted_resources = sorted(unique_resources.values(), key=lambda x: x.quality_score or 0, reverse=True)
+            
+            logger.info(f"Returning {len(sorted_resources)} skill-based recommendations")
+            return sorted_resources[:20]  # Return top 20 resources
+            
+        except Exception as e:
+            logger.error(f"Error getting skill-based recommendations: {str(e)}")
+            raise ServiceException(f"Failed to get skill-based recommendations: {str(e)}")
+
+    async def _get_skill_specific_resources(self, skill: str, difficulty: DifficultyLevel) -> List[LearningResource]:
+        """Get learning resources specific to a single skill."""
+        resources = []
+        
+        # Skill-specific resource mapping
+        skill_resources = {
+            "python": [
+                {
+                    "title": "Python Crash Course",
+                    "provider": ResourceProvider.UDEMY,
+                    "url": "https://www.udemy.com/course/complete-python-bootcamp/",
+                    "rating": 4.6,
+                    "duration_hours": 22,
+                    "cost": 89.99,
+                    "difficulty": DifficultyLevel.BEGINNER
+                },
+                {
+                    "title": "Automate the Boring Stuff with Python",
+                    "provider": ResourceProvider.UDEMY,
+                    "url": "https://www.udemy.com/course/automate/",
+                    "rating": 4.7,
+                    "duration_hours": 9,
+                    "cost": 0.0,
+                    "difficulty": DifficultyLevel.BEGINNER
+                }
+            ],
+            "javascript": [
+                {
+                    "title": "JavaScript: Understanding the Weird Parts",
+                    "provider": ResourceProvider.UDEMY,
+                    "url": "https://www.udemy.com/course/understand-javascript/",
+                    "rating": 4.6,
+                    "duration_hours": 11,
+                    "cost": 84.99,
+                    "difficulty": DifficultyLevel.INTERMEDIATE
+                },
+                {
+                    "title": "JavaScript Algorithms and Data Structures",
+                    "provider": ResourceProvider.FREECODECAMP,
+                    "url": "https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/",
+                    "rating": 4.8,
+                    "duration_hours": 300,
+                    "cost": 0.0,
+                    "difficulty": DifficultyLevel.INTERMEDIATE
+                }
+            ],
+            "react": [
+                {
+                    "title": "React - The Complete Guide",
+                    "provider": ResourceProvider.UDEMY,
+                    "url": "https://www.udemy.com/course/react-the-complete-guide-incl-redux/",
+                    "rating": 4.6,
+                    "duration_hours": 48,
+                    "cost": 94.99,
+                    "difficulty": DifficultyLevel.INTERMEDIATE
+                },
+                {
+                    "title": "React Tutorial and Projects Course",
+                    "provider": ResourceProvider.FREECODECAMP,
+                    "url": "https://www.freecodecamp.org/news/react-tutorial-and-projects-course/",
+                    "rating": 4.7,
+                    "duration_hours": 12,
+                    "cost": 0.0,
+                    "difficulty": DifficultyLevel.BEGINNER
+                }
+            ],
+            "machine_learning": [
+                {
+                    "title": "Machine Learning Course by Andrew Ng",
+                    "provider": ResourceProvider.COURSERA,
+                    "url": "https://www.coursera.org/learn/machine-learning",
+                    "rating": 4.9,
+                    "duration_hours": 60,
+                    "cost": 79.0,
+                    "difficulty": DifficultyLevel.INTERMEDIATE
+                },
+                {
+                    "title": "Machine Learning with Python",
+                    "provider": ResourceProvider.FREECODECAMP,
+                    "url": "https://www.freecodecamp.org/learn/machine-learning-with-python/",
+                    "rating": 4.5,
+                    "duration_hours": 300,
+                    "cost": 0.0,
+                    "difficulty": DifficultyLevel.INTERMEDIATE
+                }
+            ],
+            "aws": [
+                {
+                    "title": "AWS Certified Solutions Architect",
+                    "provider": ResourceProvider.UDEMY,
+                    "url": "https://www.udemy.com/course/aws-certified-solutions-architect-associate/",
+                    "rating": 4.7,
+                    "duration_hours": 30,
+                    "cost": 94.99,
+                    "difficulty": DifficultyLevel.INTERMEDIATE
+                },
+                {
+                    "title": "AWS Cloud Practitioner Essentials",
+                    "provider": ResourceProvider.EDX,
+                    "url": "https://www.edx.org/course/aws-cloud-practitioner-essentials",
+                    "rating": 4.4,
+                    "duration_hours": 20,
+                    "cost": 0.0,
+                    "difficulty": DifficultyLevel.BEGINNER
+                }
+            ]
+        }
+        
+        skill_lower = skill.lower()
+        if skill_lower in skill_resources:
+            for resource_data in skill_resources[skill_lower]:
+                # Filter by difficulty if specified
+                if difficulty and resource_data["difficulty"] != difficulty:
+                    continue
+                
+                resource = LearningResource(
+                    title=resource_data["title"],
+                    type=ResourceType.COURSE,
+                    provider=resource_data["provider"],
+                    url=resource_data["url"],
+                    rating=resource_data["rating"],
+                    duration_hours=resource_data["duration_hours"],
+                    cost=resource_data["cost"],
+                    difficulty_level=resource_data["difficulty"],
+                    skills_taught=[skill],
+                    certificate_available=True,
+                    quality_score=resource_data["rating"] / 5.0
+                )
+                resources.append(resource)
+        
+        return resources
+
+    async def create_custom_learning_path(self, title: str, skills: List[str], user_preferences: Dict[str, Any]) -> LearningPath:
+        """
+        Create a custom learning path based on specific skills and user preferences.
+        
+        This method allows for dynamic creation of learning paths tailored to
+        specific user needs and preferences.
+        """
+        try:
+            logger.info(f"Creating custom learning path: {title}")
+            
+            # Determine difficulty level
+            difficulty = DifficultyLevel(user_preferences.get('difficulty', 'intermediate'))
+            
+            # Calculate estimated duration
+            base_hours_per_skill = {
+                DifficultyLevel.BEGINNER: 40,
+                DifficultyLevel.INTERMEDIATE: 60,
+                DifficultyLevel.ADVANCED: 80
+            }
+            
+            total_hours = len(skills) * base_hours_per_skill[difficulty]
+            weeks = max(1, total_hours // user_preferences.get('hours_per_week', 10))
+            
+            # Create milestones for each skill group
+            milestones = []
+            for i, skill in enumerate(skills):
+                milestone = Milestone(
+                    title=f"Master {skill.title()}",
+                    description=f"Develop proficiency in {skill}",
+                    order=i,
+                    skills_to_acquire=[skill],
+                    estimated_duration_hours=base_hours_per_skill[difficulty],
+                    completion_criteria=[
+                        f"Complete {skill} fundamentals course",
+                        f"Build project using {skill}",
+                        f"Pass {skill} assessment"
+                    ]
+                )
+                milestones.append(milestone)
+            
+            # Get resources for all skills
+            resources = await self.get_skill_based_recommendations(skills, difficulty)
+            
+            # Create the learning path
+            learning_path = LearningPath(
+                title=title,
+                description=f"Custom learning path covering {', '.join(skills)}",
+                target_skills=skills,
+                difficulty_level=difficulty,
+                estimated_duration_weeks=weeks,
+                estimated_duration_hours=total_hours,
+                milestones=milestones,
+                resources=resources[:10],  # Limit to top 10 resources
+                confidence_score=0.8,  # Custom paths have good confidence
+                is_personalized=True
+            )
+            
+            logger.info(f"Created custom learning path with {len(milestones)} milestones and {len(resources)} resources")
+            return learning_path
+            
+        except Exception as e:
+            logger.error(f"Error creating custom learning path: {str(e)}")
+            raise ServiceException(f"Failed to create custom learning path: {str(e)}")

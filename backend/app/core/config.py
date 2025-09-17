@@ -18,6 +18,24 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     ALLOWED_HOSTS: List[str] = ["*"]
     
+    # CORS Configuration
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",  # React dev server
+        "http://localhost:5173",  # Vite dev server
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ]
+    CORS_ALLOW_CREDENTIALS: bool = True
+    CORS_ALLOW_METHODS: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
+    CORS_ALLOW_HEADERS: List[str] = [
+        "Accept",
+        "Accept-Language",
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+    ]
+    
     # Database
     DATABASE_URL: str = Field(..., description="PostgreSQL database URL")
     DATABASE_POOL_SIZE: int = 20
@@ -90,6 +108,14 @@ class Settings(BaseSettings):
         return self.CELERY_RESULT_BACKEND or self.REDIS_URL
     
     @validator("ALLOWED_HOSTS", pre=True)
+    def assemble_allowed_hosts(cls, v):
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, (list, str)):
+            return v
+        raise ValueError(v)
+    
+    @validator("CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v):
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]

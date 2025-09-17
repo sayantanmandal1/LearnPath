@@ -2,8 +2,9 @@
 API endpoints for career and learning path recommendations.
 """
 
+import asyncio
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
@@ -343,6 +344,154 @@ async def get_trending_skills(
         
         return {"trending_skills": trending_skills[:limit]}
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/jobs", response_model=List[dict])
+async def get_job_recommendations(
+    location: Optional[str] = Query(None, description="Filter by location"),
+    experience_level: Optional[str] = Query(None, description="Filter by experience level"),
+    remote_type: Optional[str] = Query(None, description="Filter by remote work type"),
+    min_salary: Optional[int] = Query(None, description="Minimum salary filter"),
+    max_salary: Optional[int] = Query(None, description="Maximum salary filter"),
+    match_threshold: float = Query(0.6, ge=0.0, le=1.0, description="Minimum match score"),
+    limit: int = Query(10, ge=1, le=50, description="Number of job recommendations to return"),
+    include_skill_gaps: bool = Query(True, description="Include skill gap analysis"),
+    use_ml: bool = Query(True, description="Use ML-enhanced recommendations"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get personalized job recommendations based on user profile.
+    
+    This endpoint analyzes the user's profile and skills to find matching job postings
+    with detailed match scores and skill gap analysis. Can use both content-based
+    filtering and ML-enhanced collaborative filtering.
+    """
+    try:
+        # Build filters
+        filters = {}
+        if location:
+            filters['location'] = location
+        if experience_level:
+            filters['experience_level'] = experience_level
+        if remote_type:
+            filters['remote_type'] = remote_type
+        if min_salary:
+            filters['min_salary'] = min_salary
+        if max_salary:
+            filters['max_salary'] = max_salary
+        
+        # Get job recommendations
+        if use_ml:
+            job_matches = await recommendation_service.get_job_recommendations_with_ml(
+                user_id=current_user.id,
+                db=db,
+                filters=filters,
+                n_recommendations=limit
+            )
+        else:
+            # Get user profile for content-based filtering
+            from app.repositories.profile import ProfileRepository
+            profile_repo = ProfileRepository()
+            user_profile = await profile_repo.get_by_user_id(db, current_user.id)
+            
+            if not user_profile:
+                raise HTTPException(status_code=404, detail="User profile not found")
+            
+            job_matches = await recommendation_service.get_advanced_job_matches(
+                user_profile=user_profile,
+                filters=filters,
+                match_threshold=match_threshold,
+                include_skill_gaps=include_skill_gaps,
+                db=db
+            )
+            job_matches = job_matches[:limit]
+        
+        return job_matches
+        
+    except ServiceException as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/jobs/bulk-match")
+async def bulk_job_matching(
+    job_ids: List[str] = Field(..., description="List of job IDs to match against user profile"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Calculate match scores for multiple specific jobs against user profile.
+    
+    This endpoint is useful for analyzing a specific set of jobs that the user
+    is interested in, providing detailed match analysis for each.
+    """
+    try:
+        if len(job_ids) > 20:
+            raise HTTPException(status_code=400, detail="Maximum 20 job IDs allowed per request")
+        
+        # Get user profile
+        from app.repositories.profile import ProfileRepository
+        profile_repo = ProfileRepository()
+        user_profile = await profile_repo.get_by_user_id(db, current_user.id)
+        
+        if not user_profile:
+            raise HTTPException(status_code=404, detail="User profile not found")
+        
+        # Get job postings
+        from app.repositories.job import JobRepository
+        job_repo = JobRepository()
+        
+        job_matches = []
+        user_skills = user_profile.skills or {}
+        
+        for job_id in job_ids:
+            job = await job_repo.get_by_id(db, job_id)
+            if not job:
+                continue
+            
+            # Calculate match score
+            job_skills = job.processed_skills or {}
+            match_score = recommendation_service._calculate_simple_match_score(user_skills, job_skills)
+            
+            # Perform skill gap analysis
+            gap_analysis = await asyncio.get_event_loop().run_in_executor(
+                None,
+                recommendation_service.skill_gap_analyzer.analyze_skill_gaps,
+                user_skills, job_skills, job.title
+            )
+            
+            match_data = {
+                'job_id': job.id,
+                'job_title': job.title,
+                'company': job.company,
+                'location': job.location or 'Not specified',
+                'match_score': round(match_score, 3),
+                'match_percentage': round(match_score * 100, 1),
+                'skill_gaps': gap_analysis.missing_skills,
+                'weak_skills': gap_analysis.weak_skills,
+                'strong_skills': gap_analysis.strong_skills,
+                'overall_readiness': gap_analysis.overall_readiness,
+                'readiness_percentage': round(gap_analysis.overall_readiness * 100, 1),
+                'priority_skills': gap_analysis.priority_skills,
+                'required_skills': list(job_skills.keys()) if job_skills else [],
+                'salary_min': job.salary_min,
+                'salary_max': job.salary_max,
+                'posted_date': job.posted_date.isoformat() if job.posted_date else None
+            }
+            
+            job_matches.append(match_data)
+        
+        # Sort by match score
+        job_matches.sort(key=lambda x: x['match_score'], reverse=True)
+        
+        return {"job_matches": job_matches}
+        
+    except ServiceException as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
 
