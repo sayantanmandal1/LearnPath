@@ -32,13 +32,23 @@ from app.core.exceptions import ValidationError, NotFoundError, ConflictError
 # Import NLP engine for resume processing
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../..', 'machinelearningmodel'))
+# Check if ML dependencies should be disabled
+DISABLE_ML = os.getenv('DISABLE_ML', 'false').lower() == 'true'
 
-try:
-    from nlp_engine import NLPEngine
-    from models import ResumeData, SkillExtraction as MLSkillExtraction
-except ImportError:
-    # Fallback if ML models not available
+if not DISABLE_ML:
+    sys.path.append(os.path.join(os.path.dirname(__file__), '../../..', 'machinelearningmodel'))
+    
+    try:
+        from nlp_engine import NLPEngine
+        from models import ResumeData, SkillExtraction as MLSkillExtraction
+    except ImportError as e:
+        # Fallback if ML models not available
+        print(f"Warning: ML models not available: {e}")
+        NLPEngine = None
+        ResumeData = None
+        MLSkillExtraction = None
+else:
+    print("ML dependencies disabled via environment variable")
     NLPEngine = None
     ResumeData = None
     MLSkillExtraction = None
