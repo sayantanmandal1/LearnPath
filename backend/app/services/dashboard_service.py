@@ -28,7 +28,7 @@ try:
     from ..services.profile_service import ProfileService
 except ImportError:
     ProfileService = None
-from ..core.exceptions import ServiceError
+from ..core.exceptions import ServiceException
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class DashboardService:
             if self.profile_service:
                 profile = await self.profile_service.get_profile(user_id)
                 if not profile:
-                    raise ServiceError(f"Profile not found for user {user_id}")
+                    raise ServiceException(f"Profile not found for user {user_id}")
             else:
                 # Create mock profile when service unavailable
                 profile = self._create_mock_profile(user_id)
@@ -109,7 +109,7 @@ class DashboardService:
             
         except Exception as e:
             logger.error(f"Error generating dashboard summary for user {user_id}: {str(e)}")
-            raise ServiceError(f"Failed to generate dashboard summary: {str(e)}")
+            raise ServiceException(f"Failed to generate dashboard summary: {str(e)}")
     
     async def get_user_progress_summary(self, user_id: str, tracking_period_days: int = 90) -> UserProgressSummary:
         """
@@ -158,7 +158,7 @@ class DashboardService:
             
         except Exception as e:
             logger.error(f"Error generating progress summary for user {user_id}: {str(e)}")
-            raise ServiceError(f"Failed to generate progress summary: {str(e)}")
+            raise ServiceException(f"Failed to generate progress summary: {str(e)}")
     
     async def get_personalized_content(self, user_id: str) -> PersonalizedContent:
         """
@@ -169,7 +169,7 @@ class DashboardService:
             if self.profile_service:
                 profile = await self.profile_service.get_profile(user_id)
                 if not profile:
-                    raise ServiceError(f"Profile not found for user {user_id}")
+                    raise ServiceException(f"Profile not found for user {user_id}")
             else:
                 profile = self._create_mock_profile(user_id)
             
@@ -217,7 +217,7 @@ class DashboardService:
             
         except Exception as e:
             logger.error(f"Error generating personalized content for user {user_id}: {str(e)}")
-            raise ServiceError(f"Failed to generate personalized content: {str(e)}")
+            raise ServiceException(f"Failed to generate personalized content: {str(e)}")
     
     # Helper methods
     

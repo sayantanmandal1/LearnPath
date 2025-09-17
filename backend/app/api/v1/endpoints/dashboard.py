@@ -13,7 +13,7 @@ from ....services.dashboard_service import DashboardService
 from ....schemas.dashboard import (
     DashboardSummary, UserProgressSummary, PersonalizedContent, DashboardConfiguration
 )
-from ....core.exceptions import ServiceError
+from ....core.exceptions import ServiceException
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ async def get_dashboard_summary(
         
         return summary
         
-    except ServiceError as e:
+    except ServiceException as e:
         logger.error(f"Service error getting dashboard summary for user {current_user.id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -78,7 +78,7 @@ async def get_user_progress_summary(
         
         return progress
         
-    except ServiceError as e:
+    except ServiceException as e:
         logger.error(f"Service error getting progress summary for user {current_user.id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -113,7 +113,7 @@ async def get_personalized_dashboard_content(
         
         return content
         
-    except ServiceError as e:
+    except ServiceException as e:
         logger.error(f"Service error getting personalized content for user {current_user.id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -171,7 +171,7 @@ async def get_dashboard_metrics(
         
         return response
         
-    except ServiceError as e:
+    except ServiceException as e:
         logger.error(f"Service error getting dashboard metrics for user {current_user.id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -230,7 +230,7 @@ async def get_user_milestones(
         
         return response
         
-    except ServiceError as e:
+    except ServiceException as e:
         logger.error(f"Service error getting milestones for user {current_user.id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -285,7 +285,7 @@ async def get_recent_activities(
         
         return response
         
-    except ServiceError as e:
+    except ServiceException as e:
         logger.error(f"Service error getting activities for user {current_user.id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -336,7 +336,7 @@ async def get_dashboard_quick_stats(
         
         return response
         
-    except ServiceError as e:
+    except ServiceException as e:
         logger.error(f"Service error getting quick stats for user {current_user.id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

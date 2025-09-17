@@ -493,7 +493,7 @@ async def trigger_pipeline(pipeline_name: str, background_tasks: BackgroundTasks
 
 
 @router.post("/models/{model_name}/retrain")
-async def trigger_model_retraining(model_name: str, force: bool = False, background_tasks: BackgroundTasks):
+async def trigger_model_retraining(model_name: str, background_tasks: BackgroundTasks, force: bool = False):
     """Trigger retraining for a specific model"""
     try:
         from app.services.data_pipeline.model_training_pipeline import ModelTrainingPipeline
@@ -520,7 +520,7 @@ async def trigger_model_retraining(model_name: str, force: bool = False, backgro
 
 
 @router.post("/profiles/{profile_id}/refresh")
-async def refresh_single_profile(profile_id: str, platforms: List[str] = None, background_tasks: BackgroundTasks):
+async def refresh_single_profile(profile_id: str, background_tasks: BackgroundTasks, platforms: List[str] = None):
     """Refresh a single user profile"""
     try:
         from app.services.data_pipeline.profile_refresh_pipeline import ProfileRefreshPipeline
