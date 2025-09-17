@@ -2,6 +2,16 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
+// Error handling utility for production
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String(error.message);
+  }
+  return 'An unexpected error occurred';
+};
+
 // Types
 interface User {
   id: string;
@@ -81,8 +91,8 @@ class AuthApiService {
     const registerData = {
       email,
       password,
-      full_name: userData.firstName && userData.lastName 
-        ? `${userData.firstName} ${userData.lastName}` 
+      full_name: userData.firstName && userData.lastName
+        ? `${userData.firstName} ${userData.lastName}`
         : userData.full_name || null,
     };
 
@@ -150,7 +160,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Auto-refresh token before expiry
   const scheduleTokenRefresh = (expiresIn?: number) => {
     if (!expiresIn) return;
-    
+
     // Refresh 5 minutes before expiry
     const refreshTime = (expiresIn - 300) * 1000;
     if (refreshTime > 0) {
@@ -165,7 +175,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const initializeAuth = async () => {
       try {
         const { accessToken, refreshToken } = getStoredTokens();
-        
+
         if (!accessToken || !refreshToken) {
           setLoading(false);
           return;
@@ -181,18 +191,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const tokens = await authApi.refreshToken(refreshToken);
             setStoredTokens(tokens);
             scheduleTokenRefresh(tokens.expires_in);
-            
+
             // Get user data with new token
             const userData = await authApi.getCurrentUser();
             setUser(userData);
           } catch (refreshError) {
             // Refresh failed, clear tokens
+            console.warn('Token refresh failed during initialization:', getErrorMessage(refreshError));
             clearStoredTokens();
             setUser(null);
           }
         }
       } catch (error) {
-        console.error('Auth initialization failed:', error);
+        console.error('Auth initialization failed:', getErrorMessage(error));
         clearStoredTokens();
         setUser(null);
       } finally {
@@ -218,7 +229,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       return userData;
     } catch (error) {
-      setError(error.message);
+      const errorMessage = getErrorMessage(error);
+      setError(errorMessage);
       throw error;
     } finally {
       setLoading(false);
@@ -232,7 +244,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Register user
       const newUser = await authApi.register(email, password, userData);
-      
+
       // Auto-login after registration
       const tokens = await authApi.login(email, password);
       setStoredTokens(tokens);
@@ -244,7 +256,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       return currentUser;
     } catch (error) {
-      setError(error.message);
+      const errorMessage = getErrorMessage(error);
+      setError(errorMessage);
       throw error;
     } finally {
       setLoading(false);
@@ -254,13 +267,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signOut = async (): Promise<void> => {
     try {
       setLoading(true);
-      
+
       // Call logout endpoint
       try {
         await authApi.logout();
       } catch (error) {
         // Continue with logout even if API call fails
-        console.warn('Logout API call failed:', error);
+        console.warn('Logout API call failed:', getErrorMessage(error));
       }
 
       // Clear local state and tokens
@@ -268,7 +281,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(null);
       setError(null);
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error('Logout failed:', getErrorMessage(error));
       // Still clear local state on error
       clearStoredTokens();
       setUser(null);
@@ -280,7 +293,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const refreshToken = async (): Promise<AuthTokens> => {
     try {
       const { refreshToken: storedRefreshToken } = getStoredTokens();
-      
+
       if (!storedRefreshToken) {
         throw new Error('No refresh token available');
       }
@@ -291,7 +304,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       return tokens;
     } catch (error) {
-      console.error('Token refresh failed:', error);
+      console.error('Token refresh failed:', getErrorMessage(error));
       // Clear tokens and user state on refresh failure
       clearStoredTokens();
       setUser(null);

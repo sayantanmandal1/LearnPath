@@ -17,12 +17,17 @@ import {
   Brain, 
   Settings 
 } from 'lucide-react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
-import { authUtils } from '../utils/auth';
+// Custom User type to match AuthContext
+interface User {
+  id: string;
+  email: string;
+  full_name?: string;
+  [key: string]: any;
+}
 
 interface NavigationProps {
   isLoggedIn: boolean;
-  user: SupabaseUser | null;
+  user: User | null;
   loading: boolean;
   onLogin: () => void;
   onLogout: () => void;
@@ -113,16 +118,16 @@ export function Navigation({ isLoggedIn, user, loading, onLogin, onLogout }: Nav
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={user?.user_metadata?.avatar_url} alt="User" />
+                        <AvatarImage src={user?.avatar_url} alt="User" />
                         <AvatarFallback>
-                          {user?.email?.charAt(0).toUpperCase() || 'U'}
+                          {user?.full_name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56" align="end" forceMount>
                     <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      {user?.email}
+                      {user?.full_name || user?.email}
                     </div>
                     <DropdownMenuItem asChild>
                       <Link to="/profile" className="flex items-center">
@@ -134,12 +139,7 @@ export function Navigation({ isLoggedIn, user, loading, onLogin, onLogout }: Nav
                       <Settings className="mr-2 h-4 w-4" />
                       Settings
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={async () => {
-                      const result = await authUtils.signOut();
-                      if (result.success) {
-                        onLogout();
-                      }
-                    }}>
+                    <DropdownMenuItem onClick={onLogout}>
                       <LogOut className="mr-2 h-4 w-4" />
                       Log out
                     </DropdownMenuItem>
