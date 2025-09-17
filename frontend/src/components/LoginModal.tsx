@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
-import { authUtils } from '../utils/auth';
+import { useAuth } from '../contexts/AuthContext';
 import { Github, Linkedin, Eye, EyeOff, ArrowRight } from 'lucide-react';
 
 interface LoginModalProps {
@@ -16,6 +16,7 @@ interface LoginModalProps {
 }
 
 export function LoginModal({ open, onClose, onLogin }: LoginModalProps) {
+  const { signIn, signUp, signInWithOAuth } = useAuth();
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -38,32 +39,18 @@ export function LoginModal({ open, onClose, onLogin }: LoginModalProps) {
           setLoading(false);
           return;
         }
-        const result = await authUtils.signUp(
-          formData.email,
-          formData.password,
-          {
-            name: formData.name,
-            careerGoal: formData.careerGoal,
-            experience: formData.experience
-          }
-        );
-        if (result.success) {
-          toast.success('Account created! Redirecting...');
-          setTimeout(() => onLogin(true), 1200);
-        } else {
-          toast.error(result.error || 'Sign up failed');
-        }
+        await signUp(formData.email, formData.password, {
+          firstName: formData.name.split(' ')[0] || formData.name,
+          lastName: formData.name.split(' ').slice(1).join(' ') || '',
+          careerGoal: formData.careerGoal,
+          experience: formData.experience
+        });
+        toast.success('Account created! Please check your email to verify your account.');
+        setTimeout(() => onLogin(true), 1200);
       } else {
-        const result = await authUtils.signInWithPassword(
-          formData.email,
-          formData.password
-        );
-        if (result.success) {
-          toast.success('Welcome back! Redirecting...');
-          setTimeout(() => onLogin(false), 1200);
-        } else {
-          toast.error(result.error || 'Sign in failed');
-        }
+        await signIn(formData.email, formData.password);
+        toast.success('Welcome back! Redirecting...');
+        setTimeout(() => onLogin(false), 1200);
       }
     } catch (error: any) {
       toast.error(error.message || 'An error occurred');
@@ -74,12 +61,13 @@ export function LoginModal({ open, onClose, onLogin }: LoginModalProps) {
 
   const handleSocialLogin = async (provider: 'github' | 'linkedin' | 'google') => {
     setLoading(true);
-  // Map 'linkedin' to 'linkedin_oidc' for Supabase OIDC support
-  const mappedProvider = provider === 'linkedin' ? 'linkedin_oidc' : provider;
-  const result = await authUtils.signInWithOAuth(mappedProvider);
-    if (result.success) {
+    try {
+      // Map 'linkedin' to 'linkedin_oidc' for Supabase OIDC support
+      const mappedProvider = provider === 'linkedin' ? 'linkedin_oidc' : provider;
+      await signInWithOAuth(mappedProvider as 'google' | 'github' | 'linkedin_oidc');
       toast.success(`Redirecting to ${provider}...`);
-    } else {
+    } catch (error: any) {
+      toast.error(error.message || `${provider} login failed`);
       setLoading(false);
     }
   };
@@ -109,7 +97,7 @@ export function LoginModal({ open, onClose, onLogin }: LoginModalProps) {
           </DialogTitle>
           <DialogDescription className="text-center">
             {activeTab === 'signup'
-              ? 'Start your career journey with CareerPilot'
+              ? 'Start your career journey with CareerAI'
               : 'Sign in to continue your career journey'
             }
           </DialogDescription>

@@ -29,7 +29,7 @@ const SignupPage = () => {
     const [error, setError] = useState('');
     const [passwordStrength, setPasswordStrength] = useState(0);
 
-    const { signUp, user } = useAuth();
+    const { signUp, signInWithOAuth, user } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
@@ -85,7 +85,8 @@ const SignupPage = () => {
                 firstName: formData.firstName,
                 lastName: formData.lastName
             });
-            router.push('/dashboard');
+            setError('Account created! Please check your email to verify your account.');
+            // Don't redirect immediately - user needs to verify email first
         } catch (error) {
             setError(error.message || 'Failed to create account');
         } finally {

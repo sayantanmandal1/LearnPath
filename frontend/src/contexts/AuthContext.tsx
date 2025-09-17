@@ -1,6 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '../utils/supabase/client';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
 // Error handling utility for production
 const getErrorMessage = (error: unknown): string => {
@@ -17,114 +19,22 @@ interface User {
   id: string;
   email: string;
   full_name?: string;
+  user_metadata?: any;
   [key: string]: any;
-}
-
-interface AuthTokens {
-  access_token: string;
-  refresh_token: string;
-  expires_in?: number;
 }
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   loading: boolean;
   error: string | null;
   signIn: (email: string, password: string) => Promise<User>;
   signUp: (email: string, password: string, userData?: any) => Promise<User>;
   signOut: () => Promise<void>;
-  refreshToken: () => Promise<AuthTokens>;
+  signInWithOAuth: (provider: 'google' | 'github' | 'linkedin_oidc') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// API configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-
-// API service for authentication
-class AuthApiService {
-  private baseURL: string;
-
-  constructor() {
-    this.baseURL = `${API_BASE_URL}/api/v1/auth`;
-  }
-
-  async request(endpoint: string, options: RequestInit = {}): Promise<any> {
-    const url = `${this.baseURL}${endpoint}`;
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    };
-
-    // Add auth token if available
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
-    }
-
-    try {
-      const response = await fetch(url, config);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || data.message || 'Request failed');
-      }
-
-      return data;
-    } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
-    }
-  }
-
-  async login(email: string, password: string) {
-    return this.request('/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-  }
-
-  async register(email: string, password: string, userData: any = {}) {
-    const registerData = {
-      email,
-      password,
-      full_name: userData.firstName && userData.lastName
-        ? `${userData.firstName} ${userData.lastName}`
-        : userData.full_name || null,
-    };
-
-    return this.request('/register', {
-      method: 'POST',
-      body: JSON.stringify(registerData),
-    });
-  }
-
-  async refreshToken(refreshToken: string) {
-    return this.request('/refresh', {
-      method: 'POST',
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
-  }
-
-  async getCurrentUser() {
-    return this.request('/me');
-  }
-
-  async verifyToken() {
-    return this.request('/verify');
-  }
-
-  async logout() {
-    return this.request('/logout', {
-      method: 'POST',
-    });
-  }
-}
-
-const authApi = new AuthApiService();
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -132,86 +42,56 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Token management
-  const getStoredTokens = () => {
-    return {
-      accessToken: localStorage.getItem('access_token'),
-      refreshToken: localStorage.getItem('refresh_token'),
-    };
-  };
-
-  const setStoredTokens = (tokens: Partial<AuthTokens>) => {
-    if (tokens.access_token) {
-      localStorage.setItem('access_token', tokens.access_token);
-    }
-    if (tokens.refresh_token) {
-      localStorage.setItem('refresh_token', tokens.refresh_token);
-    }
-  };
-
-  const clearStoredTokens = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-  };
-
-  // Auto-refresh token before expiry
-  const scheduleTokenRefresh = (expiresIn?: number) => {
-    if (!expiresIn) return;
-
-    // Refresh 5 minutes before expiry
-    const refreshTime = (expiresIn - 300) * 1000;
-    if (refreshTime > 0) {
-      setTimeout(async () => {
-        await refreshToken();
-      }, refreshTime);
-    }
-  };
 
   // Initialize auth state
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const { accessToken, refreshToken } = getStoredTokens();
-
-        if (!accessToken || !refreshToken) {
-          setLoading(false);
-          return;
-        }
-
-        // Verify current token
-        try {
-          const userData = await authApi.getCurrentUser();
-          setUser(userData);
-        } catch (error) {
-          // Token might be expired, try to refresh
-          try {
-            const tokens = await authApi.refreshToken(refreshToken);
-            setStoredTokens(tokens);
-            scheduleTokenRefresh(tokens.expires_in);
-
-            // Get user data with new token
-            const userData = await authApi.getCurrentUser();
-            setUser(userData);
-          } catch (refreshError) {
-            // Refresh failed, clear tokens
-            console.warn('Token refresh failed during initialization:', getErrorMessage(refreshError));
-            clearStoredTokens();
-            setUser(null);
-          }
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          setError(getErrorMessage(error));
+        } else {
+          setSession(session);
+          setUser(session?.user ? {
+            id: session.user.id,
+            email: session.user.email || '',
+            full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name,
+            user_metadata: session.user.user_metadata
+          } : null);
         }
       } catch (error) {
         console.error('Auth initialization failed:', getErrorMessage(error));
-        clearStoredTokens();
-        setUser(null);
+        setError(getErrorMessage(error));
       } finally {
         setLoading(false);
       }
     };
 
     initializeAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session);
+        setSession(session);
+        setUser(session?.user ? {
+          id: session.user.id,
+          email: session.user.email || '',
+          full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name,
+          user_metadata: session.user.user_metadata
+        } : null);
+        setLoading(false);
+        setError(null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string): Promise<User> => {
@@ -219,13 +99,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(true);
       setError(null);
 
-      const tokens = await authApi.login(email, password);
-      setStoredTokens(tokens);
-      scheduleTokenRefresh(tokens.expires_in);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      // Get user data
-      const userData = await authApi.getCurrentUser();
-      setUser(userData);
+      if (error) {
+        throw error;
+      }
+
+      if (!data.user) {
+        throw new Error('No user returned from sign in');
+      }
+
+      const userData: User = {
+        id: data.user.id,
+        email: data.user.email || '',
+        full_name: data.user.user_metadata?.full_name || data.user.user_metadata?.name,
+        user_metadata: data.user.user_metadata
+      };
 
       return userData;
     } catch (error) {
@@ -242,19 +134,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(true);
       setError(null);
 
-      // Register user
-      const newUser = await authApi.register(email, password, userData);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: userData.firstName && userData.lastName
+              ? `${userData.firstName} ${userData.lastName}`
+              : userData.full_name || '',
+            first_name: userData.firstName || '',
+            last_name: userData.lastName || '',
+            career_goal: userData.careerGoal || '',
+            experience_level: userData.experience || ''
+          }
+        }
+      });
 
-      // Auto-login after registration
-      const tokens = await authApi.login(email, password);
-      setStoredTokens(tokens);
-      scheduleTokenRefresh(tokens.expires_in);
+      if (error) {
+        throw error;
+      }
 
-      // Get updated user data
-      const currentUser = await authApi.getCurrentUser();
-      setUser(currentUser);
+      if (!data.user) {
+        throw new Error('No user returned from sign up');
+      }
 
-      return currentUser;
+      const newUser: User = {
+        id: data.user.id,
+        email: data.user.email || '',
+        full_name: data.user.user_metadata?.full_name || data.user.user_metadata?.name,
+        user_metadata: data.user.user_metadata
+      };
+
+      return newUser;
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       setError(errorMessage);
@@ -267,59 +178,56 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signOut = async (): Promise<void> => {
     try {
       setLoading(true);
-
-      // Call logout endpoint
-      try {
-        await authApi.logout();
-      } catch (error) {
-        // Continue with logout even if API call fails
-        console.warn('Logout API call failed:', getErrorMessage(error));
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
       }
 
-      // Clear local state and tokens
-      clearStoredTokens();
       setUser(null);
+      setSession(null);
       setError(null);
     } catch (error) {
       console.error('Logout failed:', getErrorMessage(error));
-      // Still clear local state on error
-      clearStoredTokens();
-      setUser(null);
+      setError(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
   };
 
-  const refreshToken = async (): Promise<AuthTokens> => {
+  const signInWithOAuth = async (provider: 'google' | 'github' | 'linkedin_oidc'): Promise<void> => {
     try {
-      const { refreshToken: storedRefreshToken } = getStoredTokens();
+      setLoading(true);
+      setError(null);
 
-      if (!storedRefreshToken) {
-        throw new Error('No refresh token available');
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+
+      if (error) {
+        throw error;
       }
-
-      const tokens = await authApi.refreshToken(storedRefreshToken);
-      setStoredTokens(tokens);
-      scheduleTokenRefresh(tokens.expires_in);
-
-      return tokens;
     } catch (error) {
-      console.error('Token refresh failed:', getErrorMessage(error));
-      // Clear tokens and user state on refresh failure
-      clearStoredTokens();
-      setUser(null);
+      const errorMessage = getErrorMessage(error);
+      setError(errorMessage);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const value = {
     user,
+    session,
     loading,
     error,
     signIn,
     signUp,
     signOut,
-    refreshToken,
+    signInWithOAuth,
   };
 
   return (

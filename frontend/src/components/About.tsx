@@ -1,14 +1,13 @@
-import React from 'react';
 import { motion } from 'motion/react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { 
-  Target, 
-  Brain, 
-  Users, 
-  Award, 
+import {
+  Target,
+  Brain,
+  Users,
+  Award,
   TrendingUp,
   Heart,
   Lightbulb,
@@ -98,7 +97,7 @@ export function About() {
               </span>
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              We believe everyone deserves a fulfilling career. CareerPilot combines cutting-edge AI with human expertise 
+              We believe everyone deserves a fulfilling career. CareerPilot combines cutting-edge AI with human expertise
               to provide personalized career guidance that adapts to the changing job market.
             </p>
           </motion.div>
@@ -137,17 +136,17 @@ export function About() {
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">Our Story</h2>
               <div className="space-y-4 text-gray-600">
                 <p>
-                  CareerPilot was born from a simple observation: too many talented professionals 
-                  struggle to navigate their career paths effectively. Traditional career counseling 
+                  CareerPilot was born from a simple observation: too many talented professionals
+                  struggle to navigate their career paths effectively. Traditional career counseling
                   was expensive, time-consuming, and often generic.
                 </p>
                 <p>
-                  Our founders, having experienced these challenges firsthand in their careers at 
-                  top tech companies, envisioned a world where personalized career guidance could 
+                  Our founders, having experienced these challenges firsthand in their careers at
+                  top tech companies, envisioned a world where personalized career guidance could
                   be accessible to everyone, powered by AI but grounded in human understanding.
                 </p>
                 <p>
-                  Today, we're proud to have helped thousands of professionals discover their ideal 
+                  Today, we're proud to have helped thousands of professionals discover their ideal
                   career paths, develop in-demand skills, and achieve their professional goals.
                 </p>
               </div>
@@ -156,7 +155,7 @@ export function About() {
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </motion.div>
-            
+
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}

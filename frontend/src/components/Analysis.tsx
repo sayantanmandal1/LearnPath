@@ -7,7 +7,6 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
-import { Separator } from './ui/separator';
 import { 
   Select,
   SelectContent,
@@ -20,21 +19,27 @@ import {
   Target, 
   TrendingUp, 
   DollarSign, 
-  MapPin, 
   Clock,
   Users,
   BookOpen,
-  Award,
-  Lightbulb,
   ArrowRight,
   Upload,
   FileText,
   Sparkles
 } from 'lucide-react';
 
+interface AnalysisData {
+  jobTitle: string;
+  experience: string;
+  skills: string;
+  location: string;
+  interests: string;
+  resume: File | null;
+}
+
 export function Analysis() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [analysisData, setAnalysisData] = useState({
+  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [analysisData, setAnalysisData] = useState<AnalysisData>({
     jobTitle: '',
     experience: '',
     skills: '',
@@ -42,7 +47,7 @@ export function Analysis() {
     interests: '',
     resume: null
   });
-  const [showResults, setShowResults] = useState(false);
+  const [showResults, setShowResults] = useState<boolean>(false);
 
   const experienceLevels = [
     'Entry Level (0-2 years)',
@@ -193,7 +198,7 @@ export function Analysis() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="experience">Experience Level</Label>
-                        <Select value={analysisData.experience} onValueChange={(value) => setAnalysisData({ ...analysisData, experience: value })}>
+                        <Select value={analysisData.experience} onValueChange={(value: string) => setAnalysisData({ ...analysisData, experience: value })}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select experience level" />
                           </SelectTrigger>
@@ -206,7 +211,7 @@ export function Analysis() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="location">Preferred Location</Label>
-                        <Select value={analysisData.location} onValueChange={(value) => setAnalysisData({ ...analysisData, location: value })}>
+                        <Select value={analysisData.location} onValueChange={(value: string) => setAnalysisData({ ...analysisData, location: value })}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select location" />
                           </SelectTrigger>
