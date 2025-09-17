@@ -13,7 +13,8 @@ import io
 try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4, letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.platypus.flowables import Image
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import inch
     from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
@@ -25,6 +26,16 @@ try:
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
+    # Define dummy classes and functions for type hints when ReportLab is not available
+    class Image:
+        pass
+    
+    def getSampleStyleSheet():
+        return None
+    
+    class ParagraphStyle:
+        def __init__(self, *args, **kwargs):
+            pass
 
 try:
     import matplotlib.pyplot as plt
@@ -60,8 +71,13 @@ class PDFReportService:
     
     def _setup_custom_styles(self):
         """Setup custom paragraph styles"""
+        # Helper function to add style if it doesn't exist
+        def add_style_if_not_exists(style):
+            if style.name not in self.styles:
+                self.styles.add(style)
+        
         # Title style
-        self.styles.add(ParagraphStyle(
+        add_style_if_not_exists(ParagraphStyle(
             name='CustomTitle',
             parent=self.styles['Heading1'],
             fontSize=24,
@@ -71,7 +87,7 @@ class PDFReportService:
         ))
         
         # Section header style
-        self.styles.add(ParagraphStyle(
+        add_style_if_not_exists(ParagraphStyle(
             name='SectionHeader',
             parent=self.styles['Heading2'],
             fontSize=16,
@@ -84,7 +100,7 @@ class PDFReportService:
         ))
         
         # Subsection style
-        self.styles.add(ParagraphStyle(
+        add_style_if_not_exists(ParagraphStyle(
             name='SubSection',
             parent=self.styles['Heading3'],
             fontSize=14,
@@ -94,8 +110,8 @@ class PDFReportService:
         ))
         
         # Body text with better spacing
-        self.styles.add(ParagraphStyle(
-            name='BodyText',
+        add_style_if_not_exists(ParagraphStyle(
+            name='CustomBodyText',  # Changed name to avoid conflict
             parent=self.styles['Normal'],
             fontSize=11,
             spaceAfter=8,
@@ -103,7 +119,7 @@ class PDFReportService:
         ))
         
         # Highlight style for important information
-        self.styles.add(ParagraphStyle(
+        add_style_if_not_exists(ParagraphStyle(
             name='Highlight',
             parent=self.styles['Normal'],
             fontSize=12,
@@ -267,7 +283,7 @@ class PDFReportService:
             insights.append(f"• {len(progress.milestones_achieved)} milestones achieved")
         
         for insight in insights:
-            content.append(Paragraph(insight, self.styles['BodyText']))
+            content.append(Paragraph(insight, self.styles['CustomBodyText']))
         
         content.append(Spacer(1, 0.2*inch))
         
@@ -275,7 +291,7 @@ class PDFReportService:
         if report_data.recommendations:
             content.append(Paragraph("Key Recommendations:", self.styles['SubSection']))
             for i, rec in enumerate(report_data.recommendations[:3]):  # Top 3 recommendations
-                content.append(Paragraph(f"{i+1}. {rec}", self.styles['BodyText']))
+                content.append(Paragraph(f"{i+1}. {rec}", self.styles['CustomBodyText']))
         
         return content
     
@@ -516,14 +532,14 @@ class PDFReportService:
         
         progress = report_data.progress_report
         
-        content.append(Paragraph(f"Tracking Period: {progress.tracking_period_days} days", self.styles['BodyText']))
+        content.append(Paragraph(f"Tracking Period: {progress.tracking_period_days} days", self.styles['CustomBodyText']))
         content.append(Paragraph(f"Overall Improvement Score: {progress.overall_improvement_score:.1f}%", self.styles['Highlight']))
         
         # Milestones achieved
         if progress.milestones_achieved:
             content.append(Paragraph("Milestones Achieved:", self.styles['SubSection']))
             for milestone in progress.milestones_achieved:
-                content.append(Paragraph(f"• {milestone}", self.styles['BodyText']))
+                content.append(Paragraph(f"• {milestone}", self.styles['CustomBodyText']))
         
         # Skill improvements
         if progress.skill_improvements:
@@ -562,7 +578,7 @@ class PDFReportService:
         content.append(Paragraph("Recommendations", self.styles['SectionHeader']))
         
         for i, recommendation in enumerate(report_data.recommendations, 1):
-            content.append(Paragraph(f"{i}. {recommendation}", self.styles['BodyText']))
+            content.append(Paragraph(f"{i}. {recommendation}", self.styles['CustomBodyText']))
         
         return content
     
@@ -572,7 +588,7 @@ class PDFReportService:
         content.append(Paragraph("Next Steps", self.styles['SectionHeader']))
         
         for i, step in enumerate(report_data.next_steps, 1):
-            content.append(Paragraph(f"{i}. {step}", self.styles['BodyText']))
+            content.append(Paragraph(f"{i}. {step}", self.styles['CustomBodyText']))
         
         return content
     

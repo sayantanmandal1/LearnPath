@@ -16,7 +16,7 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { LoginModal } from './components/LoginModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Toaster } from './components/ui/sonner';
-import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
+import { AuthProvider, useAuth } from './contexts/AuthContext.js';
 
 function AppContent() {
   const { user, loading, signOut } = useAuth();
@@ -32,14 +32,14 @@ function AppContent() {
         setNeedsOnboarding(false);
         return;
       }
-      
+
       // TODO: Replace with backend API call to check user profile
       // For now, assume new users need onboarding
       try {
         // This would be replaced with a call to the backend profile API
         // const response = await fetch(`${API_BASE_URL}/api/v1/profiles/me`);
         // const profileData = await response.json();
-        
+
         // For now, check if user has full_name (indicating completed registration)
         if (!user.full_name) {
           setNeedsOnboarding(true);
@@ -52,7 +52,7 @@ function AppContent() {
       }
       setProfileChecked(true);
     };
-    
+
     if (user) {
       checkProfile();
     } else {
@@ -116,7 +116,7 @@ function AppContent() {
     <ErrorBoundary>
       <Router>
         <div className="min-h-screen bg-background">
-          <Navigation 
+          <Navigation
             isLoggedIn={isLoggedIn}
             user={user}
             loading={loading}
@@ -137,7 +137,7 @@ function AppContent() {
             </Routes>
           </AnimatePresence>
           {showLoginModal && (
-            <LoginModal 
+            <LoginModal
               open={showLoginModal}
               onClose={() => setShowLoginModal(false)}
               onLogin={handleLoginSuccess}

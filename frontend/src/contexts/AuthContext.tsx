@@ -2,20 +2,46 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-const AuthContext = createContext({});
+// Types
+interface User {
+  id: string;
+  email: string;
+  full_name?: string;
+  [key: string]: any;
+}
+
+interface AuthTokens {
+  access_token: string;
+  refresh_token: string;
+  expires_in?: number;
+}
+
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  error: string | null;
+  signIn: (email: string, password: string) => Promise<User>;
+  signUp: (email: string, password: string, userData?: any) => Promise<User>;
+  signOut: () => Promise<void>;
+  refreshToken: () => Promise<AuthTokens>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // API configuration
 const API_BASE_URL = process.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 // API service for authentication
 class AuthApiService {
+  private baseURL: string;
+
   constructor() {
     this.baseURL = `${API_BASE_URL}/api/v1/auth`;
   }
 
-  async request(endpoint, options = {}) {
+  async request(endpoint: string, options: RequestInit = {}): Promise<any> {
     const url = `${this.baseURL}${endpoint}`;
-    const config = {
+    const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -26,7 +52,7 @@ class AuthApiService {
     // Add auth token if available
     const token = localStorage.getItem('access_token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
     }
 
     try {
@@ -44,14 +70,14 @@ class AuthApiService {
     }
   }
 
-  async login(email, password) {
+  async login(email: string, password: string) {
     return this.request('/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
   }
 
-  async register(email, password, userData = {}) {
+  async register(email: string, password: string, userData: any = {}) {
     const registerData = {
       email,
       password,
@@ -66,7 +92,7 @@ class AuthApiService {
     });
   }
 
-  async refreshToken(refreshToken) {
+  async refreshToken(refreshToken: string) {
     return this.request('/refresh', {
       method: 'POST',
       body: JSON.stringify({ refresh_token: refreshToken }),
@@ -90,10 +116,14 @@ class AuthApiService {
 
 const authApi = new AuthApiService();
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+interface AuthProviderProps {
+  children: React.ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Token management
   const getStoredTokens = () => {
@@ -103,7 +133,7 @@ export function AuthProvider({ children }) {
     };
   };
 
-  const setStoredTokens = (tokens) => {
+  const setStoredTokens = (tokens: Partial<AuthTokens>) => {
     if (tokens.access_token) {
       localStorage.setItem('access_token', tokens.access_token);
     }
@@ -118,7 +148,9 @@ export function AuthProvider({ children }) {
   };
 
   // Auto-refresh token before expiry
-  const scheduleTokenRefresh = (expiresIn) => {
+  const scheduleTokenRefresh = (expiresIn?: number) => {
+    if (!expiresIn) return;
+    
     // Refresh 5 minutes before expiry
     const refreshTime = (expiresIn - 300) * 1000;
     if (refreshTime > 0) {
@@ -171,7 +203,7 @@ export function AuthProvider({ children }) {
     initializeAuth();
   }, []);
 
-  const signIn = async (email, password) => {
+  const signIn = async (email: string, password: string): Promise<User> => {
     try {
       setLoading(true);
       setError(null);
@@ -193,7 +225,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signUp = async (email, password, userData = {}) => {
+  const signUp = async (email: string, password: string, userData: any = {}): Promise<User> => {
     try {
       setLoading(true);
       setError(null);
@@ -219,7 +251,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signOut = async () => {
+  const signOut = async (): Promise<void> => {
     try {
       setLoading(true);
       
@@ -245,7 +277,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const refreshToken = async () => {
+  const refreshToken = async (): Promise<AuthTokens> => {
     try {
       const { refreshToken: storedRefreshToken } = getStoredTokens();
       
@@ -284,7 +316,7 @@ export function AuthProvider({ children }) {
   );
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
