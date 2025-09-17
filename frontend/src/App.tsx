@@ -16,56 +16,13 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { LoginModal } from './components/LoginModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Toaster } from './components/ui/sonner';
-import { supabase } from './utils/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 
-export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+function AppContent() {
+  const { user, loading, signOut } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [profileChecked, setProfileChecked] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-
-    // Get initial session with timeout
-    const getInitialSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.warn('Session error:', error);
-        }
-        if (mounted) {
-          setUser(session?.user ?? null);
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Failed to get session:', error);
-        if (mounted) {
-          setUser(null);
-          setLoading(false);
-        }
-      }
-    };
-
-    getInitialSession();
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) {
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
 
   // Check if user profile is missing and needs onboarding
   useEffect(() => {
@@ -75,19 +32,27 @@ export default function App() {
         setNeedsOnboarding(false);
         return;
       }
-      // Query the profiles table for this user
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('name, career_goal, experience')
-        .eq('id', user.id)
-        .single();
-      if (error || !data || !data.name || !data.career_goal || !data.experience) {
-        setNeedsOnboarding(true);
-      } else {
+      
+      // TODO: Replace with backend API call to check user profile
+      // For now, assume new users need onboarding
+      try {
+        // This would be replaced with a call to the backend profile API
+        // const response = await fetch(`${API_BASE_URL}/api/v1/profiles/me`);
+        // const profileData = await response.json();
+        
+        // For now, check if user has full_name (indicating completed registration)
+        if (!user.full_name) {
+          setNeedsOnboarding(true);
+        } else {
+          setNeedsOnboarding(false);
+        }
+      } catch (error) {
+        console.error('Error checking profile:', error);
         setNeedsOnboarding(false);
       }
       setProfileChecked(true);
     };
+    
     if (user) {
       checkProfile();
     } else {
@@ -99,16 +64,13 @@ export default function App() {
   const handleSignOut = async () => {
     if (!window.confirm('Are you sure you want to sign out?')) return;
     try {
-      await supabase.auth.signOut();
-      setUser(null);
+      await signOut();
       window.location.replace('/');
     } catch (error) {
       console.error('Error signing out:', error);
     }
   };
 
-  // Modern: redirect to dashboard after login
-  // Modern: redirect to onboarding after signup, dashboard after login
   const handleLoginSuccess = (isSignUp = false) => {
     setShowLoginModal(false);
     if (isSignUp) {
@@ -124,7 +86,6 @@ export default function App() {
   if (loading || !profileChecked) {
     return <LoadingSpinner />;
   }
-
 
   // Only require onboarding for protected routes
   const protectedRoutes = ['/dashboard', '/profile', '/analysis'];
@@ -186,5 +147,13 @@ export default function App() {
         </div>
       </Router>
     </ErrorBoundary>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

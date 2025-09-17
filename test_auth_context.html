@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuthContext Test</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // Mock AuthContext for testing
+        const AuthContext = React.createContext({});
+
+        // API configuration
+        const API_BASE_URL = 'http://localhost:8000';
+
+        // API service for authentication
+        class AuthApiService {
+            constructor() {
+                this.baseURL = `${API_BASE_URL}/api/v1/auth`;
+            }
+
+            async request(endpoint, options = {}) {
+                const url = `${this.baseURL}${endpoint}`;
+                const config = {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers,
+                    },
+                    ...options,
+                };
+
+                // Add auth token if available
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
+
+                try {
+                    const response = await fetch(url, config);
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.detail || data.message || 'Request failed');
+                    }
+
+                    return data;
+                } catch (error) {
+                    console.error('API request failed:', error);
+                    throw error;
+                }
+            }
+
+            async login(email, password) {
+                return this.request('/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password }),
+                });
+            }
+
+            async register(email, password, userData = {}) {
+                const registerData = {
+                    email,
+                    password,
+                    full_name: userData.firstName && userData.lastName 
+                        ? `${userData.firstName} ${userData.lastName}` 
+                        : userData.full_name || null,
+                };
+
+                return this.request('/register', {
+                    method: 'POST',
+                    body: JSON.stringify(registerData),
+                });
+            }
+        }
+
+        const authApi = new AuthApiService();
+
+        function AuthProvider({ children }) {
+            const [user, setUser] = React.useState(null);
+            const [loading, setLoading] = React.useState(false);
+            const [error, setError] = React.useState(null);
+
+            const signIn = async (email, password) => {
+                try {
+                    setLoading(true);
+                    setError(null);
+                    
+                    // Mock successful login for testing
+                    const mockUser = {
+                        id: '1',
+                        email: email,
+                        full_name: 'Test User'
+                    };
+                    
+                    setUser(mockUser);
+                    return mockUser;
+                } catch (error) {
+                    setError(error.message);
+                    throw error;
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const signUp = async (email, password, userData = {}) => {
+                try {
+                    setLoading(true);
+                    setError(null);
+                    
+                    // Mock successful registration for testing
+                    const mockUser = {
+                        id: '1',
+                        email: email,
+                        full_name: userData.firstName && userData.lastName 
+                            ? `${userData.firstName} ${userData.lastName}` 
+                            : 'Test User'
+                    };
+                    
+                    setUser(mockUser);
+                    return mockUser;
+                } catch (error) {
+                    setError(error.message);
+                    throw error;
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const signOut = async () => {
+                setUser(null);
+                setError(null);
+            };
+
+            const value = {
+                user,
+                loading,
+                error,
+                signIn,
+                signUp,
+                signOut,
+            };
+
+            return React.createElement(AuthContext.Provider, { value }, children);
+        }
+
+        function useAuth() {
+            const context = React.useContext(AuthContext);
+            if (context === undefined) {
+                throw new Error('useAuth must be used within an AuthProvider');
+            }
+            return context;
+        }
+
+        // Test component
+        function AuthTest() {
+            const { user, loading, error, signIn, signUp, signOut } = useAuth();
+            const [email, setEmail] = React.useState('test@example.com');
+            const [password, setPassword] = React.useState('password123');
+
+            const handleLogin = async () => {
+                try {
+                    await signIn(email, password);
+                    console.log('Login successful');
+                } catch (error) {
+                    console.error('Login failed:', error);
+                }
+            };
+
+            const handleSignup = async () => {
+                try {
+                    await signUp(email, password, { firstName: 'Test', lastName: 'User' });
+                    console.log('Signup successful');
+                } catch (error) {
+                    console.error('Signup failed:', error);
+                }
+            };
+
+            const handleLogout = async () => {
+                await signOut();
+                console.log('Logout successful');
+            };
+
+            return React.createElement('div', { style: { padding: '20px', fontFamily: 'Arial, sans-serif' } },
+                React.createElement('h1', null, 'AuthContext Test'),
+                
+                React.createElement('div', { style: { marginBottom: '20px' } },
+                    React.createElement('h2', null, 'User Status'),
+                    React.createElement('p', null, `Loading: ${loading}`),
+                    React.createElement('p', null, `User: ${user ? JSON.stringify(user, null, 2) : 'Not logged in'}`),
+                    React.createElement('p', null, `Error: ${error || 'None'}`)
+                ),
+
+                React.createElement('div', { style: { marginBottom: '20px' } },
+                    React.createElement('h2', null, 'Test Authentication'),
+                    React.createElement('div', { style: { marginBottom: '10px' } },
+                        React.createElement('input', {
+                            type: 'email',
+                            placeholder: 'Email',
+                            value: email,
+                            onChange: (e) => setEmail(e.target.value),
+                            style: { marginRight: '10px', padding: '5px' }
+                        }),
+                        React.createElement('input', {
+                            type: 'password',
+                            placeholder: 'Password',
+                            value: password,
+                            onChange: (e) => setPassword(e.target.value),
+                            style: { padding: '5px' }
+                        })
+                    ),
+                    React.createElement('div', null,
+                        React.createElement('button', {
+                            onClick: handleLogin,
+                            disabled: loading,
+                            style: { marginRight: '10px', padding: '10px' }
+                        }, 'Sign In'),
+                        React.createElement('button', {
+                            onClick: handleSignup,
+                            disabled: loading,
+                            style: { marginRight: '10px', padding: '10px' }
+                        }, 'Sign Up'),
+                        React.createElement('button', {
+                            onClick: handleLogout,
+                            disabled: loading,
+                            style: { padding: '10px' }
+                        }, 'Sign Out')
+                    )
+                )
+            );
+        }
+
+        // App component
+        function App() {
+            return React.createElement(AuthProvider, null,
+                React.createElement(AuthTest)
+            );
+        }
+
+        // Render the app
+        ReactDOM.render(React.createElement(App), document.getElementById('root'));
+    </script>
+</body>
+</html>

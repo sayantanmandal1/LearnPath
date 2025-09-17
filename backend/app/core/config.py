@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     DATABASE_MAX_OVERFLOW: int = 30
     
     # Redis
-    REDIS_URL: str = Field(..., description="Redis connection URL")
+    REDIS_URL: Optional[str] = Field(None, description="Redis connection URL")
     REDIS_CACHE_TTL: int = 300  # 5 minutes
     
     # JWT Authentication
