@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     GITHUB_TOKEN: Optional[str] = None
     LINKEDIN_CLIENT_ID: Optional[str] = None
     LINKEDIN_CLIENT_SECRET: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
     
     # Logging
     LOG_LEVEL: str = "INFO"

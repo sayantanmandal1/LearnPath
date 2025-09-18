@@ -6,7 +6,8 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     auth, external_profiles, profiles, recommendations, career_trajectory, 
     learning_paths, analytics, job_market, vector_search, comprehensive_api, performance, health,
-    privacy, security, pipeline_automation, career_analysis, market_insights, dashboard, resume
+    privacy, security, pipeline_automation, career_analysis, market_insights, dashboard, resume,
+    ai_analysis
 )
 
 api_router = APIRouter()
@@ -31,3 +32,4 @@ api_router.include_router(pipeline_automation.router, prefix="/pipeline", tags=[
 api_router.include_router(market_insights.router, prefix="/market-insights", tags=["market-insights"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(resume.router, prefix="/resume", tags=["resume"])
+api_router.include_router(ai_analysis.router, prefix="/ai-analysis", tags=["ai-analysis"])
