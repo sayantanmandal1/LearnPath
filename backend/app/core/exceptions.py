@@ -411,3 +411,35 @@ class SystemHealthError(APIException):
             ],
             user_friendly_message="Some system components are temporarily unavailable."
         )
+
+
+class ProcessingError(APIException):
+    """File processing errors"""
+    
+    def __init__(
+        self,
+        detail: str,
+        processing_type: Optional[str] = None,
+        original_error: Optional[Exception] = None,
+        fallback_available: bool = False,
+    ):
+        recovery_suggestions = [
+            "File processing failed",
+            "Please check the file format and try again"
+        ]
+        
+        if fallback_available:
+            recovery_suggestions.append("You can try manual data entry as an alternative")
+        
+        super().__init__(
+            status_code=422,
+            detail=f"Processing error: {detail}",
+            error_code="PROCESSING_ERROR",
+            details={
+                "processing_type": processing_type,
+                "original_error": str(original_error) if original_error else None,
+                "fallback_available": fallback_available,
+            },
+            recovery_suggestions=recovery_suggestions,
+            user_friendly_message="We couldn't process your file. Please try a different format or enter the information manually."
+        )

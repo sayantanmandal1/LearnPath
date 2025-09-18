@@ -101,7 +101,7 @@ class UserProfile(Base):
         comment="Preferred benefits as JSON array"
     )
     
-    # Platform IDs
+    # Platform IDs (legacy fields - new platform data stored in platform_accounts table)
     github_username: Mapped[Optional[str]] = mapped_column(
         String(100),
         nullable=True
@@ -115,6 +115,18 @@ class UserProfile(Base):
         nullable=True
     )
     codeforces_id: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True
+    )
+    atcoder_username: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True
+    )
+    hackerrank_username: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True
+    )
+    kaggle_username: Mapped[Optional[str]] = mapped_column(
         String(100),
         nullable=True
     )

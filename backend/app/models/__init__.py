@@ -7,6 +7,9 @@ from .user import User, RefreshToken
 from .profile import UserProfile
 from .skill import Skill, UserSkill, SkillCategory
 from .job import JobPosting, JobSkill, Company
+from .resume import ResumeData, ProcessingStatus
+from .platform_account import PlatformAccount, PlatformScrapingLog, PlatformType, ScrapingStatus
+from .analysis_result import AnalysisResult, JobRecommendation, AnalysisType, AnalysisStatus
 
 __all__ = [
     "User",
@@ -18,4 +21,14 @@ __all__ = [
     "JobPosting",
     "JobSkill",
     "Company",
+    "ResumeData",
+    "ProcessingStatus",
+    "PlatformAccount",
+    "PlatformScrapingLog",
+    "PlatformType",
+    "ScrapingStatus",
+    "AnalysisResult",
+    "JobRecommendation",
+    "AnalysisType",
+    "AnalysisStatus",
 ]
