@@ -18,6 +18,7 @@ import { LoginModal } from './components/LoginModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthTest } from './components/AuthTest';
 
 function AppContent() {
   const { user, loading, signOut } = useAuth();
@@ -164,6 +165,7 @@ function AppContent() {
             />
           )}
           <Toaster />
+          <AuthTest />
         </div>
       </Router>
     </ErrorBoundary>

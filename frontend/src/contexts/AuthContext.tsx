@@ -97,9 +97,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Check if we have tokens in localStorage (from backend auth)
         const accessToken = localStorage.getItem('access_token');
-        const refreshToken = localStorage.getItem('refresh_token');
 
         if (accessToken) {
           // Verify token with backend and get user data
@@ -114,11 +112,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             if (response.ok) {
               const userData = await response.json();
               setUser(userData);
-            } else if (response.status === 401 && refreshToken) {
-              // Try to refresh token
-              await refreshTokens();
             } else {
               // Invalid token, clear storage
+              console.log('Invalid token, clearing storage');
               localStorage.removeItem('access_token');
               localStorage.removeItem('refresh_token');
             }
@@ -127,14 +123,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
           }
-        }
-
-        // Also check for Supabase session (for OAuth)
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (session && !accessToken) {
-          // User logged in via OAuth but no backend tokens
-          setSession(session);
-          // You might want to sync this with your backend here
         }
 
       } catch (error) {
@@ -146,26 +134,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     initializeAuth();
-
-    // Listen for Supabase auth changes (OAuth only)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Supabase auth state changed:', event);
-        setSession(session);
-
-        if (event === 'SIGNED_OUT') {
-          // Clear backend tokens when signing out of Supabase
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          setUser(null);
-        }
-
-        setLoading(false);
-        setError(null);
-      }
-    );
-
-    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string): Promise<User> => {
@@ -249,8 +217,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(true);
       setError(null);
 
-      // Sign out from Supabase (if using OAuth)
-      await supabase.auth.signOut();
+      // Sign out from Supabase only if there's a session (OAuth)
+      if (session) {
+        try {
+          await supabase.auth.signOut();
+        } catch (supabaseError) {
+          console.log('Supabase signout failed, continuing with backend signout');
+        }
+      }
 
       // Clear backend tokens
       localStorage.removeItem('access_token');
@@ -297,6 +271,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await refreshTokens();
   };
 
+  // Helper method to clear all auth data
+  const clearAllAuthData = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    // Clear Supabase session data
+    localStorage.removeItem('sb-bmhvwzqadllsyncnyhyw-auth-token');
+    sessionStorage.clear();
+    setUser(null);
+    setSession(null);
+    setError(null);
+  };
+
   const value: AuthContextType = {
     user,
     session,
@@ -308,6 +294,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signInWithOAuth,
     refreshToken,
   };
+
+  // Clear all auth data on mount to avoid conflicts
+  useEffect(() => {
+    // Clear any stale Supabase sessions that might be causing issues
+    const clearStaleData = () => {
+      const supabaseKeys = Object.keys(localStorage).filter(key =>
+        key.startsWith('sb-') || key.includes('supabase')
+      );
+      supabaseKeys.forEach(key => localStorage.removeItem(key));
+    };
+
+    clearStaleData();
+  }, []);
 
   return (
     <AuthContext.Provider value={value}>
