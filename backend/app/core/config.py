@@ -57,6 +57,19 @@ class Settings(BaseSettings):
     LINKEDIN_CLIENT_SECRET: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
     
+    # Supabase Configuration
+    SUPABASE_URL: Optional[str] = Field(None, description="Supabase project URL")
+    SUPABASE_ANON_KEY: Optional[str] = Field(None, description="Supabase anonymous key")
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = Field(None, description="Supabase service role key")
+    SUPABASE_JWT_SECRET: Optional[str] = Field(None, description="Supabase JWT secret")
+    
+    # Data Sync Configuration
+    ENABLE_DATA_SYNC: bool = True
+    DATA_SYNC_INTERVAL_MINUTES: int = 60  # How often to run sync checks
+    CONFLICT_RESOLUTION_STRATEGY: str = "hybrid"  # hybrid, supabase_priority, postgresql_priority
+    MAX_SYNC_RETRIES: int = 3
+    SYNC_BATCH_SIZE: int = 100
+    
     # Logging
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"

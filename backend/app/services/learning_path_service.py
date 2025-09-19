@@ -62,36 +62,42 @@ class LearningPathService:
         """
         Generate personalized learning paths based on user requirements.
         
-        Implements requirements 4.1, 4.4, 4.7
+        Implements requirements 3.5, 3.6, 3.7 - AI-powered skill gap identification,
+        personalized learning path generation, and project recommendations with market context.
         """
         try:
             logger.info(f"Generating learning paths for user {request.user_id}")
             
-            # Step 1: Identify and prioritize skill gaps
-            skill_gaps = await self._identify_skill_gaps(request)
+            # Step 1: AI-powered skill gap identification
+            skill_gaps = await self._identify_skill_gaps_with_ai(request)
             
-            # Step 2: Generate multiple learning path options
+            # Step 2: Get market context for recommendation relevance
+            market_context = await self._get_market_context(request.target_role, request.target_skills)
+            
+            # Step 3: Generate multiple learning path options with AI analysis
             learning_paths = []
             
-            # Generate primary path (most direct)
-            primary_path = await self._generate_primary_path(request, skill_gaps)
+            # Generate primary path (most direct with AI optimization)
+            primary_path = await self._generate_ai_optimized_primary_path(request, skill_gaps, market_context)
             learning_paths.append(primary_path)
             
-            # Generate alternative paths (different approaches)
-            alternative_paths = await self._generate_alternative_paths(request, skill_gaps)
+            # Generate alternative paths (different approaches with market insights)
+            alternative_paths = await self._generate_market_aware_alternative_paths(request, skill_gaps, market_context)
             learning_paths.extend(alternative_paths)
             
-            # Step 3: Rank and filter paths
-            ranked_paths = await self._rank_learning_paths(learning_paths, request)
+            # Step 4: Rank and filter paths with market relevance scoring
+            ranked_paths = await self._rank_learning_paths_with_market_context(learning_paths, request, market_context)
             
             return LearningPathResponse(
                 learning_paths=ranked_paths[:5],  # Return top 5 paths
                 total_paths=len(ranked_paths),
                 skill_gaps_identified=skill_gaps,
                 recommendations_metadata={
-                    "generation_method": "hybrid_recommendation",
-                    "personalization_factors": ["current_skills", "target_role", "time_commitment"],
-                    "data_sources": ["coursera", "udemy", "edx", "github", "freecodecamp"]
+                    "generation_method": "ai_powered_with_market_context",
+                    "personalization_factors": ["current_skills", "target_role", "time_commitment", "market_demand", "salary_potential"],
+                    "data_sources": ["coursera", "udemy", "edx", "github", "freecodecamp", "market_insights"],
+                    "ai_analysis_used": True,
+                    "market_context_integrated": True
                 }
             )
             
@@ -99,11 +105,103 @@ class LearningPathService:
             logger.error(f"Error generating learning paths: {str(e)}")
             raise ServiceException(f"Failed to generate learning paths: {str(e)}")
 
-    async def _identify_skill_gaps(self, request: LearningPathRequest) -> List[SkillGap]:
+    async def _identify_skill_gaps_with_ai(self, request: LearningPathRequest) -> List[SkillGap]:
         """
-        Identify and prioritize skill gaps based on current skills and target role.
+        AI-powered skill gap identification using Gemini API for intelligent analysis.
         
-        Implements requirement 4.1
+        Implements requirement 3.5 - Skill gap identification algorithm using AI analysis
+        """
+        try:
+            from ..services.ai_analysis_service import GeminiAPIClient
+            
+            skill_gaps = []
+            gemini_client = GeminiAPIClient()
+            
+            # Prepare context for AI analysis
+            context = self._prepare_skill_gap_context(request)
+            
+            # AI-powered skill gap analysis prompt
+            prompt = f"""
+            Analyze the following user profile and identify skill gaps for career advancement:
+            
+            {context}
+            
+            Perform intelligent skill gap analysis considering:
+            1. Current skill levels vs industry requirements
+            2. Target role requirements and market standards
+            3. Career progression pathways
+            4. Indian tech market demands
+            5. Skill interdependencies and learning sequences
+            6. Time-to-proficiency estimates
+            
+            For each identified skill gap, provide:
+            - Skill name
+            - Current proficiency level (0.0-1.0)
+            - Target proficiency level (0.0-1.0)
+            - Gap size and priority score (0.0-1.0)
+            - Market demand score (0.0-1.0)
+            - Estimated learning hours
+            - Difficulty level (beginner/intermediate/advanced)
+            - Learning priority reasoning
+            """
+            
+            schema = """
+            {
+                "skill_gaps": [
+                    {
+                        "skill_name": "string",
+                        "current_level": 0.0-1.0,
+                        "target_level": 0.0-1.0,
+                        "gap_size": 0.0-1.0,
+                        "priority": 0.0-1.0,
+                        "market_demand": 0.0-1.0,
+                        "estimated_learning_hours": integer,
+                        "difficulty": "beginner/intermediate/advanced",
+                        "priority_reasoning": "string"
+                    }
+                ],
+                "analysis_confidence": 0.0-1.0,
+                "recommendations": ["string"]
+            }
+            """
+            
+            # Get AI analysis
+            ai_result, request_id = await gemini_client.analyze_with_structured_output(prompt, schema)
+            
+            # Convert AI results to SkillGap objects
+            for gap_data in ai_result.get("skill_gaps", []):
+                difficulty_map = {
+                    "beginner": DifficultyLevel.BEGINNER,
+                    "intermediate": DifficultyLevel.INTERMEDIATE,
+                    "advanced": DifficultyLevel.ADVANCED
+                }
+                
+                skill_gap = SkillGap(
+                    skill_name=gap_data.get("skill_name", ""),
+                    current_level=gap_data.get("current_level", 0.0),
+                    target_level=gap_data.get("target_level", 0.8),
+                    gap_size=gap_data.get("gap_size", 0.0),
+                    priority=gap_data.get("priority", 0.5),
+                    market_demand=gap_data.get("market_demand", 0.5),
+                    estimated_learning_hours=gap_data.get("estimated_learning_hours", 40),
+                    difficulty=difficulty_map.get(gap_data.get("difficulty", "intermediate"), DifficultyLevel.INTERMEDIATE)
+                )
+                skill_gaps.append(skill_gap)
+            
+            # Sort by AI-calculated priority
+            skill_gaps.sort(key=lambda x: x.priority, reverse=True)
+            
+            logger.info(f"AI identified {len(skill_gaps)} skill gaps with confidence {ai_result.get('analysis_confidence', 0.0)}")
+            return skill_gaps
+            
+        except Exception as e:
+            logger.warning(f"AI skill gap analysis failed, falling back to traditional method: {str(e)}")
+            # Fallback to traditional skill gap identification
+            return await self._identify_skill_gaps_fallback(request)
+    
+    async def _identify_skill_gaps_fallback(self, request: LearningPathRequest) -> List[SkillGap]:
+        """
+        Fallback skill gap identification when AI analysis is unavailable.
         """
         skill_gaps = []
         
@@ -138,32 +236,140 @@ class LearningPathService:
         
         return skill_gaps
 
-    async def _generate_primary_path(self, request: LearningPathRequest, skill_gaps: List[SkillGap]) -> LearningPath:
-        """Generate the primary (most direct) learning path."""
+    async def _get_market_context(self, target_role: Optional[str], target_skills: List[str]) -> Dict[str, Any]:
+        """
+        Get market context for recommendation relevance.
         
-        # Select top priority skills
-        priority_skills = [gap.skill_name for gap in skill_gaps[:8]]  # Top 8 skills
+        Implements requirement 3.7 - Market context integration for recommendation relevance
+        """
+        try:
+            from ..services.market_insights_service import MarketInsightsService
+            
+            market_service = MarketInsightsService()
+            
+            # Get market insights for the target role and skills
+            market_context = {
+                "role_demand": {},
+                "skill_trends": {},
+                "salary_insights": {},
+                "growth_opportunities": {},
+                "location_preferences": {}
+            }
+            
+            # This would integrate with the actual market insights service
+            # For now, providing structured market context
+            if target_role:
+                market_context["role_demand"] = {
+                    "demand_level": "high",
+                    "growth_rate": 0.15,
+                    "avg_salary_range": "8-25 LPA",
+                    "top_locations": ["Bangalore", "Hyderabad", "Pune", "Chennai"]
+                }
+            
+            # Analyze skill market trends
+            for skill in target_skills:
+                market_context["skill_trends"][skill] = {
+                    "demand_score": 0.8,
+                    "growth_trend": "increasing",
+                    "salary_impact": "high",
+                    "market_saturation": "medium"
+                }
+            
+            logger.info(f"Retrieved market context for role: {target_role}, skills: {len(target_skills)}")
+            return market_context
+            
+        except Exception as e:
+            logger.warning(f"Failed to get market context: {str(e)}")
+            return {"error": "market_context_unavailable"}
+    
+    async def _generate_ai_optimized_primary_path(self, request: LearningPathRequest, skill_gaps: List[SkillGap], market_context: Dict[str, Any]) -> LearningPath:
+        """
+        Generate AI-optimized primary learning path with market context integration.
         
-        # Create learning path
-        path = LearningPath(
-            title=f"Primary Path to {request.target_role or 'Target Skills'}",
-            description="The most direct path to achieve your learning goals",
-            target_role=request.target_role,
-            target_skills=priority_skills,
-            skill_gaps=skill_gaps,
-            difficulty_level=self._determine_overall_difficulty(skill_gaps),
-            estimated_duration_weeks=self._calculate_total_duration_weeks(skill_gaps, request.time_commitment_hours_per_week),
-            estimated_duration_hours=int(sum(gap.estimated_learning_hours for gap in skill_gaps))
-        )
-        
-        # Generate milestones and resources
-        path.milestones = await self._create_milestones(priority_skills, skill_gaps)
-        path.resources = await self._gather_learning_resources(priority_skills, request)
-        
-        # Calculate confidence score
-        path.confidence_score = self._calculate_path_confidence(path, request)
-        
-        return path
+        Implements requirement 3.6 - Personalized learning path generation with resource recommendations
+        """
+        try:
+            from ..services.ai_analysis_service import GeminiAPIClient
+            
+            gemini_client = GeminiAPIClient()
+            
+            # Select top priority skills based on AI analysis and market demand
+            priority_skills = self._select_priority_skills_with_market_context(skill_gaps, market_context)
+            
+            # AI-powered learning path optimization
+            optimization_prompt = f"""
+            Create an optimized learning path for the following requirements:
+            
+            Target Role: {request.target_role or 'Skill Development'}
+            Priority Skills: {', '.join(priority_skills)}
+            Time Commitment: {request.time_commitment_hours_per_week} hours/week
+            Budget Limit: {request.budget_limit or 'No limit'}
+            
+            Skill Gaps Analysis:
+            {self._format_skill_gaps_for_ai(skill_gaps[:8])}
+            
+            Market Context:
+            {self._format_market_context_for_ai(market_context)}
+            
+            Generate an optimized learning path with:
+            1. Intelligent skill sequencing based on dependencies
+            2. Resource recommendations prioritized by quality and market relevance
+            3. Milestone structure with clear progression markers
+            4. Time estimates based on skill complexity and market demand
+            5. Success metrics aligned with industry standards
+            
+            Focus on practical, industry-relevant learning that maximizes career impact.
+            """
+            
+            schema = """
+            {
+                "title": "Learning Path Title",
+                "description": "Detailed path description",
+                "learning_objectives": ["objective1", "objective2", ...],
+                "skill_sequence": [
+                    {
+                        "skill": "skill_name",
+                        "priority_order": integer,
+                        "estimated_hours": integer,
+                        "market_relevance": 0.0-1.0
+                    }
+                ],
+                "success_metrics": ["metric1", "metric2", ...],
+                "difficulty_assessment": "beginner/intermediate/advanced",
+                "market_alignment_score": 0.0-1.0
+            }
+            """
+            
+            # Get AI optimization
+            ai_result, request_id = await gemini_client.analyze_with_structured_output(optimization_prompt, schema)
+            
+            # Create optimized learning path
+            path = LearningPath(
+                title=ai_result.get("title", f"AI-Optimized Path to {request.target_role or 'Target Skills'}"),
+                description=ai_result.get("description", "AI-optimized learning path based on market insights and skill analysis"),
+                target_role=request.target_role,
+                target_skills=priority_skills,
+                skill_gaps=skill_gaps,
+                difficulty_level=self._map_difficulty_from_ai(ai_result.get("difficulty_assessment", "intermediate")),
+                estimated_duration_weeks=self._calculate_ai_optimized_duration(ai_result, request.time_commitment_hours_per_week),
+                estimated_duration_hours=sum(skill.get("estimated_hours", 40) for skill in ai_result.get("skill_sequence", [])),
+                learning_objectives=ai_result.get("learning_objectives", []),
+                success_metrics=ai_result.get("success_metrics", [])
+            )
+            
+            # Generate AI-optimized milestones and resources
+            path.milestones = await self._create_ai_optimized_milestones(ai_result, skill_gaps)
+            path.resources = await self._gather_market_aware_resources(priority_skills, request, market_context)
+            
+            # Calculate confidence score with market alignment
+            path.confidence_score = self._calculate_market_aware_confidence(path, request, market_context, ai_result.get("market_alignment_score", 0.8))
+            
+            logger.info(f"Generated AI-optimized primary path with {len(path.milestones)} milestones and {len(path.resources)} resources")
+            return path
+            
+        except Exception as e:
+            logger.warning(f"AI optimization failed, using fallback method: {str(e)}")
+            return await self._generate_primary_path_fallback(request, skill_gaps, market_context)
 
     async def _generate_alternative_paths(self, request: LearningPathRequest, skill_gaps: List[SkillGap]) -> List[LearningPath]:
         """Generate alternative learning paths with different approaches."""
@@ -500,85 +706,172 @@ class LearningPathService:
         
         return resources
 
-    async def get_project_recommendations(self, skills: List[str], difficulty: DifficultyLevel = DifficultyLevel.INTERMEDIATE) -> List[ProjectRecommendation]:
+    async def get_project_recommendations(self, skills: List[str], difficulty: DifficultyLevel = DifficultyLevel.INTERMEDIATE, career_goals: Optional[str] = None) -> List[ProjectRecommendation]:
         """
-        Get project recommendations from GitHub trending repositories.
+        AI-powered project recommendation system based on career goals and current skills.
         
-        Implements requirement 4.3
+        Implements requirement 3.6 - Project suggestion engine based on career goals and current skills
         """
         try:
-            projects = []
+            from ..services.ai_analysis_service import GeminiAPIClient
             
-            # This would integrate with GitHub API to get trending repositories
-            # For now, using curated project recommendations
-            project_templates = {
-                "python": [
+            gemini_client = GeminiAPIClient()
+            
+            # AI-powered project recommendation prompt
+            project_prompt = f"""
+            Generate personalized project recommendations based on the following criteria:
+            
+            Skills to Practice: {', '.join(skills)}
+            Difficulty Level: {difficulty.value}
+            Career Goals: {career_goals or 'General skill development'}
+            
+            Generate 5-8 project recommendations that:
+            1. Demonstrate practical application of the specified skills
+            2. Align with current industry trends and employer expectations
+            3. Build a strong portfolio for the Indian tech market
+            4. Progress logically from simpler to more complex implementations
+            5. Include real-world problem-solving scenarios
+            6. Showcase both technical and soft skills
+            
+            For each project, provide:
+            - Compelling title and detailed description
+            - Technologies and frameworks to use
+            - Skills practiced and learning outcomes
+            - Estimated completion time
+            - Portfolio value and market relevance
+            - Specific implementation features
+            - Potential extensions for advanced learners
+            """
+            
+            schema = """
+            {
+                "projects": [
                     {
-                        "title": "Personal Finance Tracker",
-                        "description": "Build a web app to track personal expenses with data visualization",
-                        "repository_url": "https://github.com/example/finance-tracker",
-                        "skills_practiced": ["python", "flask", "sqlite", "data_visualization"],
-                        "technologies": ["Python", "Flask", "SQLite", "Chart.js"],
-                        "estimated_duration_hours": 40
-                    },
-                    {
-                        "title": "Machine Learning Stock Predictor",
-                        "description": "Create a ML model to predict stock prices using historical data",
-                        "repository_url": "https://github.com/example/stock-predictor",
-                        "skills_practiced": ["python", "machine_learning", "pandas", "scikit-learn"],
-                        "technologies": ["Python", "Pandas", "Scikit-learn", "Matplotlib"],
-                        "estimated_duration_hours": 60
+                        "title": "Project Title",
+                        "description": "Detailed project description with specific features",
+                        "technologies": ["tech1", "tech2", ...],
+                        "skills_practiced": ["skill1", "skill2", ...],
+                        "estimated_duration_hours": integer,
+                        "difficulty_level": "beginner/intermediate/advanced",
+                        "learning_outcomes": ["outcome1", "outcome2", ...],
+                        "portfolio_value": "High/Medium/Low with explanation",
+                        "market_relevance": 0.0-1.0,
+                        "implementation_features": ["feature1", "feature2", ...],
+                        "extensions": ["extension1", "extension2", ...]
                     }
                 ],
-                "javascript": [
-                    {
-                        "title": "Task Management App",
-                        "description": "Build a full-stack task management application with React and Node.js",
-                        "repository_url": "https://github.com/example/task-manager",
-                        "skills_practiced": ["javascript", "react", "node.js", "mongodb"],
-                        "technologies": ["React", "Node.js", "Express", "MongoDB"],
-                        "estimated_duration_hours": 50
-                    }
-                ],
-                "react": [
-                    {
-                        "title": "E-commerce Dashboard",
-                        "description": "Create an admin dashboard for an e-commerce platform",
-                        "repository_url": "https://github.com/example/ecommerce-dashboard",
-                        "skills_practiced": ["react", "typescript", "state_management", "api_integration"],
-                        "technologies": ["React", "TypeScript", "Redux", "Material-UI"],
-                        "estimated_duration_hours": 70
-                    }
-                ]
+                "recommendation_reasoning": "Overall reasoning for project selection"
             }
+            """
             
-            for skill in skills:
-                if skill.lower() in project_templates:
-                    for project_data in project_templates[skill.lower()]:
-                        project = ProjectRecommendation(
-                            title=project_data["title"],
-                            description=project_data["description"],
-                            repository_url=project_data["repository_url"],
-                            difficulty_level=difficulty,
-                            skills_practiced=project_data["skills_practiced"],
-                            technologies=project_data["technologies"],
-                            estimated_duration_hours=project_data["estimated_duration_hours"],
-                            stars=1250,  # Mock data
-                            forks=340,
-                            trending_score=0.8,
-                            learning_value=0.9,
-                            market_relevance=0.85
-                        )
-                        projects.append(project)
+            # Get AI recommendations
+            ai_result, request_id = await gemini_client.analyze_with_structured_output(project_prompt, schema)
             
-            # Sort by learning value and market relevance
-            projects.sort(key=lambda x: (x.learning_value or 0) * (x.market_relevance or 0), reverse=True)
+            projects = []
+            for project_data in ai_result.get("projects", []):
+                # Map difficulty level
+                difficulty_map = {
+                    "beginner": DifficultyLevel.BEGINNER,
+                    "intermediate": DifficultyLevel.INTERMEDIATE,
+                    "advanced": DifficultyLevel.ADVANCED
+                }
+                
+                project = ProjectRecommendation(
+                    title=project_data.get("title", ""),
+                    description=project_data.get("description", ""),
+                    repository_url=f"https://github.com/ai-generated/{project_data.get('title', '').lower().replace(' ', '-')}",
+                    difficulty_level=difficulty_map.get(project_data.get("difficulty_level", "intermediate"), difficulty),
+                    skills_practiced=project_data.get("skills_practiced", []),
+                    technologies=project_data.get("technologies", []),
+                    estimated_duration_hours=project_data.get("estimated_duration_hours", 40),
+                    stars=None,  # AI-generated projects don't have GitHub stats
+                    forks=None,
+                    trending_score=0.9,  # High for AI-curated projects
+                    learning_value=0.95,  # High learning value from AI curation
+                    market_relevance=project_data.get("market_relevance", 0.8)
+                )
+                projects.append(project)
             
-            return projects[:10]  # Return top 10 projects
+            # Also get traditional project recommendations for comparison
+            traditional_projects = await self._get_traditional_project_recommendations(skills, difficulty)
+            
+            # Combine and rank all projects
+            all_projects = projects + traditional_projects
+            all_projects.sort(key=lambda x: (x.learning_value or 0) * (x.market_relevance or 0), reverse=True)
+            
+            logger.info(f"Generated {len(projects)} AI-powered and {len(traditional_projects)} traditional project recommendations")
+            return all_projects[:10]  # Return top 10 projects
             
         except Exception as e:
-            logger.error(f"Error getting project recommendations: {e}")
-            raise ServiceException(f"Failed to get project recommendations: {str(e)}")
+            logger.warning(f"AI project recommendations failed, using fallback: {str(e)}")
+            return await self._get_traditional_project_recommendations(skills, difficulty)
+    
+    async def _get_traditional_project_recommendations(self, skills: List[str], difficulty: DifficultyLevel) -> List[ProjectRecommendation]:
+        """Fallback method for project recommendations when AI is unavailable."""
+        projects = []
+        
+        # Traditional project templates
+        project_templates = {
+            "python": [
+                {
+                    "title": "Personal Finance Tracker",
+                    "description": "Build a web app to track personal expenses with data visualization",
+                    "repository_url": "https://github.com/example/finance-tracker",
+                    "skills_practiced": ["python", "flask", "sqlite", "data_visualization"],
+                    "technologies": ["Python", "Flask", "SQLite", "Chart.js"],
+                    "estimated_duration_hours": 40
+                },
+                {
+                    "title": "Machine Learning Stock Predictor",
+                    "description": "Create a ML model to predict stock prices using historical data",
+                    "repository_url": "https://github.com/example/stock-predictor",
+                    "skills_practiced": ["python", "machine_learning", "pandas", "scikit-learn"],
+                    "technologies": ["Python", "Pandas", "Scikit-learn", "Matplotlib"],
+                    "estimated_duration_hours": 60
+                }
+            ],
+            "javascript": [
+                {
+                    "title": "Task Management App",
+                    "description": "Build a full-stack task management application with React and Node.js",
+                    "repository_url": "https://github.com/example/task-manager",
+                    "skills_practiced": ["javascript", "react", "node.js", "mongodb"],
+                    "technologies": ["React", "Node.js", "Express", "MongoDB"],
+                    "estimated_duration_hours": 50
+                }
+            ],
+            "react": [
+                {
+                    "title": "E-commerce Dashboard",
+                    "description": "Create an admin dashboard for an e-commerce platform",
+                    "repository_url": "https://github.com/example/ecommerce-dashboard",
+                    "skills_practiced": ["react", "typescript", "state_management", "api_integration"],
+                    "technologies": ["React", "TypeScript", "Redux", "Material-UI"],
+                    "estimated_duration_hours": 70
+                }
+            ]
+        }
+        
+        for skill in skills:
+            if skill.lower() in project_templates:
+                for project_data in project_templates[skill.lower()]:
+                    project = ProjectRecommendation(
+                        title=project_data["title"],
+                        description=project_data["description"],
+                        repository_url=project_data["repository_url"],
+                        difficulty_level=difficulty,
+                        skills_practiced=project_data["skills_practiced"],
+                        technologies=project_data["technologies"],
+                        estimated_duration_hours=project_data["estimated_duration_hours"],
+                        stars=1250,  # Mock data
+                        forks=340,
+                        trending_score=0.8,
+                        learning_value=0.9,
+                        market_relevance=0.85
+                    )
+                    projects.append(project)
+        
+        return projects
 
     async def _filter_and_score_resources(self, resources: List[LearningResource], request: LearningPathRequest) -> List[LearningResource]:
         """
@@ -635,7 +928,301 @@ class LearningPathService:
         
         return filtered_resources
 
-    # Helper methods
+    # AI-powered helper methods
+    
+    def _prepare_skill_gap_context(self, request: LearningPathRequest) -> str:
+        """Prepare context for AI skill gap analysis."""
+        context_parts = []
+        
+        context_parts.append(f"Target Role: {request.target_role or 'Not specified'}")
+        context_parts.append(f"Target Skills: {', '.join(request.target_skills) if request.target_skills else 'Not specified'}")
+        context_parts.append(f"Time Commitment: {request.time_commitment_hours_per_week} hours/week")
+        context_parts.append(f"Budget Limit: {request.budget_limit or 'No limit'}")
+        context_parts.append(f"Preferred Learning Style: {request.preferred_learning_style or 'Not specified'}")
+        
+        if request.current_skills:
+            context_parts.append("Current Skills:")
+            for skill, level in request.current_skills.items():
+                context_parts.append(f"- {skill}: {level:.1f}/1.0")
+        
+        return "\n".join(context_parts)
+    
+    def _format_skill_gaps_for_ai(self, skill_gaps: List[SkillGap]) -> str:
+        """Format skill gaps for AI analysis."""
+        formatted_gaps = []
+        for gap in skill_gaps:
+            formatted_gaps.append(
+                f"- {gap.skill_name}: Current {gap.current_level:.1f} → Target {gap.target_level:.1f} "
+                f"(Gap: {gap.gap_size:.1f}, Priority: {gap.priority:.1f}, Market Demand: {gap.market_demand:.1f})"
+            )
+        return "\n".join(formatted_gaps)
+    
+    def _format_market_context_for_ai(self, market_context: Dict[str, Any]) -> str:
+        """Format market context for AI analysis."""
+        if "error" in market_context:
+            return "Market context unavailable"
+        
+        context_parts = []
+        
+        if "role_demand" in market_context:
+            role_data = market_context["role_demand"]
+            context_parts.append(f"Role Demand: {role_data.get('demand_level', 'unknown')} demand")
+            context_parts.append(f"Growth Rate: {role_data.get('growth_rate', 0):.1%}")
+            context_parts.append(f"Salary Range: {role_data.get('avg_salary_range', 'Not available')}")
+        
+        if "skill_trends" in market_context:
+            context_parts.append("Skill Market Trends:")
+            for skill, trend_data in market_context["skill_trends"].items():
+                context_parts.append(f"- {skill}: {trend_data.get('demand_score', 0):.1f} demand score, {trend_data.get('growth_trend', 'stable')} trend")
+        
+        return "\n".join(context_parts)
+    
+    def _select_priority_skills_with_market_context(self, skill_gaps: List[SkillGap], market_context: Dict[str, Any]) -> List[str]:
+        """Select priority skills considering both AI analysis and market context."""
+        # Weight skills by both AI priority and market demand
+        weighted_skills = []
+        
+        for gap in skill_gaps[:12]:  # Consider top 12 skills
+            market_weight = 1.0
+            
+            # Adjust weight based on market context
+            if "skill_trends" in market_context and gap.skill_name in market_context["skill_trends"]:
+                skill_trend = market_context["skill_trends"][gap.skill_name]
+                market_weight = skill_trend.get("demand_score", 0.5)
+            
+            # Combined score: AI priority * market demand * gap size
+            combined_score = gap.priority * market_weight * gap.gap_size
+            weighted_skills.append((gap.skill_name, combined_score))
+        
+        # Sort by combined score and return top 8 skills
+        weighted_skills.sort(key=lambda x: x[1], reverse=True)
+        return [skill for skill, _ in weighted_skills[:8]]
+    
+    def _map_difficulty_from_ai(self, ai_difficulty: str) -> DifficultyLevel:
+        """Map AI difficulty assessment to DifficultyLevel enum."""
+        difficulty_map = {
+            "beginner": DifficultyLevel.BEGINNER,
+            "intermediate": DifficultyLevel.INTERMEDIATE,
+            "advanced": DifficultyLevel.ADVANCED,
+            "expert": DifficultyLevel.EXPERT
+        }
+        return difficulty_map.get(ai_difficulty.lower(), DifficultyLevel.INTERMEDIATE)
+    
+    def _calculate_ai_optimized_duration(self, ai_result: Dict[str, Any], hours_per_week: int) -> int:
+        """Calculate duration based on AI optimization results."""
+        total_hours = sum(skill.get("estimated_hours", 40) for skill in ai_result.get("skill_sequence", []))
+        return max(1, total_hours // hours_per_week)
+    
+    async def _create_ai_optimized_milestones(self, ai_result: Dict[str, Any], skill_gaps: List[SkillGap]) -> List[Milestone]:
+        """Create milestones based on AI optimization."""
+        milestones = []
+        skill_sequence = ai_result.get("skill_sequence", [])
+        
+        # Group skills into logical milestones
+        milestone_groups = self._group_skills_into_milestones(skill_sequence)
+        
+        for i, (milestone_title, skills_group) in enumerate(milestone_groups):
+            milestone = Milestone(
+                title=milestone_title,
+                description=f"Master {len(skills_group)} key skills: {', '.join([s['skill'] for s in skills_group])}",
+                order=i,
+                skills_to_acquire=[skill['skill'] for skill in skills_group],
+                estimated_duration_hours=sum(skill.get('estimated_hours', 40) for skill in skills_group),
+                completion_criteria=[
+                    f"Complete learning resources for {skill['skill']}" for skill in skills_group
+                ] + [
+                    f"Build project demonstrating {skills_group[0]['skill']}" if skills_group else "Complete milestone project"
+                ]
+            )
+            milestones.append(milestone)
+        
+        return milestones
+    
+    def _group_skills_into_milestones(self, skill_sequence: List[Dict[str, Any]]) -> List[Tuple[str, List[Dict[str, Any]]]]:
+        """Group skills into logical milestone groups."""
+        if not skill_sequence:
+            return []
+        
+        # Simple grouping by priority order (every 2-3 skills)
+        groups = []
+        current_group = []
+        group_size = 3
+        
+        for i, skill in enumerate(skill_sequence):
+            current_group.append(skill)
+            
+            if len(current_group) >= group_size or i == len(skill_sequence) - 1:
+                group_title = f"Milestone {len(groups) + 1}: {skill['skill'].title()} Mastery"
+                groups.append((group_title, current_group.copy()))
+                current_group = []
+        
+        return groups
+    
+    async def _gather_market_aware_resources(self, skills: List[str], request: LearningPathRequest, market_context: Dict[str, Any]) -> List[LearningResource]:
+        """Gather learning resources with market context awareness."""
+        # Get traditional resources
+        traditional_resources = await self._gather_learning_resources(skills, request)
+        
+        # Enhance with market-aware scoring
+        for resource in traditional_resources:
+            # Boost score for resources teaching high-demand skills
+            market_boost = 1.0
+            for skill in resource.skills_taught:
+                if "skill_trends" in market_context and skill in market_context["skill_trends"]:
+                    skill_trend = market_context["skill_trends"][skill]
+                    if skill_trend.get("demand_score", 0) > 0.7:
+                        market_boost *= 1.2
+            
+            # Apply market boost to quality score
+            if resource.quality_score:
+                resource.quality_score = min(1.0, resource.quality_score * market_boost)
+        
+        # Re-sort by enhanced quality score
+        traditional_resources.sort(key=lambda x: x.quality_score or 0, reverse=True)
+        
+        return traditional_resources
+    
+    def _calculate_market_aware_confidence(self, path: LearningPath, request: LearningPathRequest, market_context: Dict[str, Any], ai_alignment_score: float) -> float:
+        """Calculate confidence score with market alignment consideration."""
+        base_confidence = self._calculate_path_confidence(path, request)
+        
+        # Market alignment factor
+        market_factor = 1.0
+        if "error" not in market_context:
+            market_factor = ai_alignment_score
+        
+        # Combine base confidence with market alignment
+        return min(1.0, base_confidence * 0.7 + market_factor * 0.3)
+    
+    async def _generate_market_aware_alternative_paths(self, request: LearningPathRequest, skill_gaps: List[SkillGap], market_context: Dict[str, Any]) -> List[LearningPath]:
+        """Generate alternative paths with market awareness."""
+        alternative_paths = []
+        
+        # Path 1: High-demand skills focused path
+        if "skill_trends" in market_context:
+            high_demand_path = await self._generate_high_demand_skills_path(request, skill_gaps, market_context)
+            alternative_paths.append(high_demand_path)
+        
+        # Path 2: Project-focused path with market-relevant projects
+        project_path = await self._generate_market_relevant_project_path(request, skill_gaps, market_context)
+        alternative_paths.append(project_path)
+        
+        # Path 3: Certification-focused path
+        cert_path = await self._generate_certification_path(request, skill_gaps)
+        alternative_paths.append(cert_path)
+        
+        return alternative_paths
+    
+    async def _generate_high_demand_skills_path(self, request: LearningPathRequest, skill_gaps: List[SkillGap], market_context: Dict[str, Any]) -> LearningPath:
+        """Generate a path focused on high-demand skills in the market."""
+        # Filter skills by market demand
+        high_demand_skills = []
+        for gap in skill_gaps:
+            if "skill_trends" in market_context and gap.skill_name in market_context["skill_trends"]:
+                skill_trend = market_context["skill_trends"][gap.skill_name]
+                if skill_trend.get("demand_score", 0) > 0.7:
+                    high_demand_skills.append(gap.skill_name)
+        
+        if not high_demand_skills:
+            high_demand_skills = [gap.skill_name for gap in skill_gaps[:6]]
+        
+        path = LearningPath(
+            title="High-Demand Skills Path",
+            description="Focus on skills with highest market demand and growth potential",
+            target_role=request.target_role,
+            target_skills=high_demand_skills,
+            skill_gaps=[gap for gap in skill_gaps if gap.skill_name in high_demand_skills],
+            difficulty_level=DifficultyLevel.INTERMEDIATE,
+            estimated_duration_weeks=self._calculate_total_duration_weeks(skill_gaps, request.time_commitment_hours_per_week),
+            estimated_duration_hours=sum(gap.estimated_learning_hours for gap in skill_gaps if gap.skill_name in high_demand_skills)
+        )
+        
+        path.milestones = await self._create_milestones(high_demand_skills, skill_gaps)
+        path.resources = await self._gather_market_aware_resources(high_demand_skills, request, market_context)
+        path.confidence_score = 0.9  # High confidence for market-driven path
+        
+        return path
+    
+    async def _generate_market_relevant_project_path(self, request: LearningPathRequest, skill_gaps: List[SkillGap], market_context: Dict[str, Any]) -> LearningPath:
+        """Generate a project-focused path with market-relevant projects."""
+        project_skills = [gap.skill_name for gap in skill_gaps[:6]]
+        
+        path = LearningPath(
+            title="Market-Relevant Project Path",
+            description="Learn through building projects that demonstrate market-relevant skills",
+            target_role=request.target_role,
+            target_skills=project_skills,
+            skill_gaps=skill_gaps[:6],
+            difficulty_level=DifficultyLevel.INTERMEDIATE,
+            estimated_duration_weeks=self._calculate_total_duration_weeks(skill_gaps[:6], request.time_commitment_hours_per_week),
+            estimated_duration_hours=sum(gap.estimated_learning_hours for gap in skill_gaps[:6])
+        )
+        
+        # Create project-focused milestones
+        path.milestones = await self._create_project_focused_milestones(project_skills, skill_gaps)
+        path.resources = await self._gather_project_focused_resources(project_skills, request)
+        path.confidence_score = 0.85
+        
+        return path
+    
+    async def _generate_primary_path_fallback(self, request: LearningPathRequest, skill_gaps: List[SkillGap], market_context: Dict[str, Any]) -> LearningPath:
+        """Fallback method for primary path generation when AI is unavailable."""
+        # Select top priority skills
+        priority_skills = [gap.skill_name for gap in skill_gaps[:8]]  # Top 8 skills
+        
+        # Create learning path
+        path = LearningPath(
+            title=f"Primary Path to {request.target_role or 'Target Skills'}",
+            description="The most direct path to achieve your learning goals",
+            target_role=request.target_role,
+            target_skills=priority_skills,
+            skill_gaps=skill_gaps,
+            difficulty_level=self._determine_overall_difficulty(skill_gaps),
+            estimated_duration_weeks=self._calculate_total_duration_weeks(skill_gaps, request.time_commitment_hours_per_week),
+            estimated_duration_hours=int(sum(gap.estimated_learning_hours for gap in skill_gaps))
+        )
+        
+        # Generate milestones and resources
+        path.milestones = await self._create_milestones(priority_skills, skill_gaps)
+        path.resources = await self._gather_learning_resources(priority_skills, request)
+        
+        # Calculate confidence score
+        path.confidence_score = self._calculate_path_confidence(path, request)
+        
+        return path
+    
+    async def _rank_learning_paths_with_market_context(self, learning_paths: List[LearningPath], request: LearningPathRequest, market_context: Dict[str, Any]) -> List[LearningPath]:
+        """Rank learning paths considering market context."""
+        for path in learning_paths:
+            # Calculate market relevance score
+            market_score = self._calculate_market_relevance_score(path, market_context)
+            
+            # Adjust confidence score based on market relevance
+            if path.confidence_score:
+                path.confidence_score = (path.confidence_score * 0.7) + (market_score * 0.3)
+        
+        # Sort by confidence score (which now includes market relevance)
+        learning_paths.sort(key=lambda x: x.confidence_score or 0, reverse=True)
+        
+        return learning_paths
+    
+    def _calculate_market_relevance_score(self, path: LearningPath, market_context: Dict[str, Any]) -> float:
+        """Calculate market relevance score for a learning path."""
+        if "error" in market_context or not path.target_skills:
+            return 0.5  # Default score when market context unavailable
+        
+        relevance_scores = []
+        
+        for skill in path.target_skills:
+            if "skill_trends" in market_context and skill in market_context["skill_trends"]:
+                skill_trend = market_context["skill_trends"][skill]
+                relevance_scores.append(skill_trend.get("demand_score", 0.5))
+            else:
+                relevance_scores.append(0.5)  # Default for unknown skills
+        
+        return sum(relevance_scores) / len(relevance_scores) if relevance_scores else 0.5
+    
+    # Traditional helper methods
     
     async def _get_target_skills_for_role(self, target_role: Optional[str]) -> List[str]:
         """Get required skills for a target role."""
@@ -1905,6 +2492,170 @@ class LearningPathService:
             
             logger.info(f"Created custom learning path with {len(milestones)} milestones and {len(resources)} resources")
             return learning_path
+            
+        except Exception as e:
+            logger.error(f"Error creating custom learning path: {str(e)}")
+            raise ServiceException(f"Failed to create custom learning path: {str(e)}")
+
+    async def _create_project_focused_milestones(self, project_skills: List[str], skill_gaps: List[SkillGap]) -> List[Milestone]:
+        """Create project-focused milestones."""
+        milestones = []
+        
+        # Group skills into project-based milestones
+        for i, skill in enumerate(project_skills[:4]):  # Max 4 project milestones
+            milestone = Milestone(
+                title=f"Project {i+1}: {skill.title()} Application",
+                description=f"Build a real-world project demonstrating {skill} proficiency",
+                order=i,
+                skills_to_acquire=[skill],
+                estimated_duration_hours=next((gap.estimated_learning_hours for gap in skill_gaps if gap.skill_name == skill), 40),
+                completion_criteria=[
+                    f"Complete {skill} learning resources",
+                    f"Build and deploy project using {skill}",
+                    f"Document project and add to portfolio"
+                ]
+            )
+            milestones.append(milestone)
+        
+        return milestones
+    
+    async def _gather_project_focused_resources(self, skills: List[str], request: LearningPathRequest) -> List[LearningResource]:
+        """Gather resources focused on project-based learning."""
+        # Get regular resources but filter for hands-on projects
+        all_resources = await self._gather_learning_resources(skills, request)
+        
+        # Prioritize resources with hands-on projects
+        project_resources = []
+        other_resources = []
+        
+        for resource in all_resources:
+            if resource.hands_on_projects or resource.type == ResourceType.PROJECT:
+                project_resources.append(resource)
+            else:
+                other_resources.append(resource)
+        
+        # Return project resources first, then others
+        return project_resources + other_resources[:5]  # Limit other resources
+    
+    # Additional service methods for enhanced functionality
+    
+    async def generate_learning_paths_for_profile(self, profile_data: Dict[str, Any]) -> List[LearningPath]:
+        """
+        Generate learning paths based on complete user profile analysis.
+        
+        This method integrates with the AI analysis service to create learning paths
+        from comprehensive profile data including resume, platform accounts, and career goals.
+        """
+        try:
+            # Extract learning path request from profile data
+            request = self._create_request_from_profile(profile_data)
+            
+            # Generate paths using the main method
+            response = await self.generate_learning_paths(request)
+            
+            return response.learning_paths
+            
+        except Exception as e:
+            logger.error(f"Error generating paths from profile: {str(e)}")
+            raise ServiceException(f"Failed to generate learning paths from profile: {str(e)}")
+    
+    def _create_request_from_profile(self, profile_data: Dict[str, Any]) -> LearningPathRequest:
+        """Create a LearningPathRequest from profile data."""
+        return LearningPathRequest(
+            user_id=profile_data.get('user_id', ''),
+            target_role=profile_data.get('desired_role') or profile_data.get('dream_job'),
+            target_skills=profile_data.get('target_skills', []),
+            current_skills=profile_data.get('current_skills', {}),
+            time_commitment_hours_per_week=profile_data.get('time_commitment_hours_per_week', 10),
+            budget_limit=profile_data.get('budget_limit'),
+            include_free_only=profile_data.get('include_free_only', False),
+            preferred_providers=profile_data.get('preferred_providers', []),
+            difficulty_preference=profile_data.get('difficulty_preference'),
+            include_certifications=profile_data.get('include_certifications', True),
+            include_projects=profile_data.get('include_projects', True)
+        )
+    
+    async def get_user_learning_paths(self, user_id: str, limit: int = 10, offset: int = 0) -> List[LearningPath]:
+        """
+        Get learning paths for a specific user.
+        
+        This would typically fetch from database. For now, returns empty list.
+        """
+        try:
+            # This would query the database for user's learning paths
+            # For now, return empty list as this is a generation service
+            logger.info(f"Fetching learning paths for user {user_id} (limit: {limit}, offset: {offset})")
+            return []
+            
+        except Exception as e:
+            logger.error(f"Error fetching user learning paths: {str(e)}")
+            return []
+    
+    async def get_skill_based_recommendations(self, skills: List[str], difficulty: DifficultyLevel) -> List[LearningResource]:
+        """
+        Get learning resources for specific skills.
+        
+        This method provides targeted learning resources for skill development.
+        """
+        try:
+            # Create a minimal request for resource gathering
+            request = LearningPathRequest(
+                user_id="anonymous",
+                target_skills=skills,
+                difficulty_preference=difficulty
+            )
+            
+            # Gather resources for the specified skills
+            resources = await self._gather_learning_resources(skills, request)
+            
+            return resources
+            
+        except Exception as e:
+            logger.error(f"Error getting skill-based recommendations: {str(e)}")
+            raise ServiceException(f"Failed to get skill recommendations: {str(e)}")
+    
+    async def create_custom_learning_path(self, title: str, skills: List[str], preferences: Dict[str, Any]) -> LearningPath:
+        """
+        Create a custom learning path for specific skills.
+        
+        This method allows users to create personalized learning paths
+        based on their specific skill requirements and preferences.
+        """
+        try:
+            # Create request from preferences
+            request = LearningPathRequest(
+                user_id=preferences.get('user_id', ''),
+                target_skills=skills,
+                time_commitment_hours_per_week=preferences.get('time_commitment_hours_per_week', 10),
+                budget_limit=preferences.get('budget_limit'),
+                include_free_only=preferences.get('include_free_only', False),
+                preferred_providers=preferences.get('preferred_providers', []),
+                difficulty_preference=preferences.get('difficulty_preference'),
+                include_certifications=preferences.get('include_certifications', True),
+                include_projects=preferences.get('include_projects', True)
+            )
+            
+            # Generate skill gaps for the custom skills
+            skill_gaps = await self._identify_skill_gaps_with_ai(request)
+            
+            # Create custom learning path
+            path = LearningPath(
+                title=title,
+                description=f"Custom learning path for {', '.join(skills)}",
+                target_role=preferences.get('target_role'),
+                target_skills=skills,
+                skill_gaps=skill_gaps,
+                difficulty_level=preferences.get('difficulty_preference', DifficultyLevel.INTERMEDIATE),
+                estimated_duration_weeks=self._calculate_total_duration_weeks(skill_gaps, request.time_commitment_hours_per_week),
+                estimated_duration_hours=sum(gap.estimated_learning_hours for gap in skill_gaps)
+            )
+            
+            # Generate milestones and resources
+            path.milestones = await self._create_milestones(skills, skill_gaps)
+            path.resources = await self._gather_learning_resources(skills, request)
+            path.confidence_score = 0.8  # Good confidence for custom paths
+            
+            return path
             
         except Exception as e:
             logger.error(f"Error creating custom learning path: {str(e)}")

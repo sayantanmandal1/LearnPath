@@ -236,3 +236,51 @@ class MarketTrendData(BaseModel):
 class BulkJobCreate(BaseModel):
     """Bulk job creation schema"""
     jobs: List[JobPostingCreate] = Field(..., min_items=1, max_items=100)
+
+class SalaryRange(BaseModel):
+    """Salary range schema"""
+    min_amount: Optional[int] = Field(None, ge=0)
+    max_amount: Optional[int] = Field(None, ge=0)
+    currency: str = Field(default="INR", max_length=10)
+    period: str = Field(default="annual", max_length=20)
+
+
+class JobPosting(BaseModel):
+    """Job posting schema for real-time job service"""
+    job_id: str
+    title: str
+    company: str
+    location: str
+    description: str
+    required_skills: List[str] = Field(default_factory=list)
+    experience_level: Optional[str] = None
+    salary_range: Optional[SalaryRange] = None
+    posted_date: Optional[datetime] = None
+    source: str
+    url: str = ""
+
+
+class SkillMatch(BaseModel):
+    """Skill match schema for job matching"""
+    skill: str
+    user_level: float = Field(ge=0.0, le=1.0)
+    required_level: float = Field(ge=0.0, le=1.0)
+    match_score: float = Field(ge=0.0, le=1.0)
+
+
+class SkillGap(BaseModel):
+    """Skill gap schema for job matching"""
+    skill: str
+    gap_level: float = Field(ge=0.0, le=1.0)
+    importance: str = Field(default="medium")
+    learning_resources: List[str] = Field(default_factory=list)
+
+
+class JobMatch(BaseModel):
+    """Job match schema with compatibility scoring"""
+    job_posting: JobPosting
+    match_score: float = Field(ge=0.0, le=1.0)
+    skill_matches: List[SkillMatch] = Field(default_factory=list)
+    skill_gaps: List[SkillGap] = Field(default_factory=list)
+    recommendation_reason: str = ""
+    compatibility_factors: Dict[str, float] = Field(default_factory=dict)

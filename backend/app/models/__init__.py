@@ -10,6 +10,7 @@ from .job import JobPosting, JobSkill, Company
 from .resume import ResumeData, ProcessingStatus
 from .platform_account import PlatformAccount, PlatformScrapingLog, PlatformType, ScrapingStatus
 from .analysis_result import AnalysisResult, JobRecommendation, AnalysisType, AnalysisStatus
+from .job_application import JobApplication, JobApplicationFeedback, JobRecommendationFeedback
 
 __all__ = [
     "User",
@@ -31,4 +32,7 @@ __all__ = [
     "JobRecommendation",
     "AnalysisType",
     "AnalysisStatus",
+    "JobApplication",
+    "JobApplicationFeedback",
+    "JobRecommendationFeedback",
 ]

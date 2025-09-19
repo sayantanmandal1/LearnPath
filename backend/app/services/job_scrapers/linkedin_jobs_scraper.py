@@ -12,12 +12,37 @@ from .base_job_scraper import BaseJobScraper, JobSearchParams, ScrapedJob
 
 
 class LinkedInJobsScraper(BaseJobScraper):
-    """LinkedIn Jobs scraper implementation"""
+    """LinkedIn Jobs scraper implementation with Indian market focus"""
     
     def __init__(self, rate_limit_delay: float = 2.0):
         super().__init__(rate_limit_delay)
         self.base_url = "https://www.linkedin.com"
         self.search_url = f"{self.base_url}/jobs/search"
+        
+        # Indian tech cities mapping for LinkedIn location IDs
+        self.indian_tech_cities = {
+            'bangalore': 'Bengaluru, Karnataka, India',
+            'bengaluru': 'Bengaluru, Karnataka, India',
+            'hyderabad': 'Hyderabad, Telangana, India',
+            'pune': 'Pune, Maharashtra, India',
+            'chennai': 'Chennai, Tamil Nadu, India',
+            'mumbai': 'Mumbai, Maharashtra, India',
+            'delhi_ncr': 'Delhi, India',
+            'gurgaon': 'Gurgaon, Haryana, India',
+            'noida': 'Noida, Uttar Pradesh, India',
+            'kolkata': 'Kolkata, West Bengal, India',
+            'ahmedabad': 'Ahmedabad, Gujarat, India',
+            'kochi': 'Kochi, Kerala, India'
+        }
+        
+        # Tech-focused keywords for Indian market
+        self.tech_keywords = [
+            'software engineer', 'developer', 'programmer', 'architect',
+            'devops', 'data scientist', 'machine learning', 'ai engineer',
+            'python developer', 'java developer', 'javascript', 'react',
+            'node.js', 'full stack', 'backend', 'frontend', 'mobile developer',
+            'android developer', 'ios developer', 'cloud engineer', 'sre'
+        ]
         
         # LinkedIn-specific headers
         self.headers.update({
@@ -269,3 +294,94 @@ class LinkedInJobsScraper(BaseJobScraper):
                 break
         
         return jobs
+    
+    async def search_indian_tech_jobs(
+        self, 
+        role: str, 
+        preferred_cities: List[str] = None,
+        experience_level: str = "mid",
+        limit: int = 50
+    ) -> List[ScrapedJob]:
+        """
+        Search for tech jobs specifically in Indian cities.
+        
+        Args:
+            role: Job role/title to search for
+            preferred_cities: List of preferred Indian cities
+            experience_level: Experience level (entry, mid, senior)
+            limit: Maximum number of jobs to return
+            
+        Returns:
+            List of ScrapedJob objects from Indian tech hubs
+        """
+        if not preferred_cities:
+            preferred_cities = ['bangalore', 'hyderabad', 'pune', 'mumbai', 'delhi_ncr']
+        
+        all_jobs = []
+        
+        for city in preferred_cities:
+            try:
+                # Map city to LinkedIn location format
+                linkedin_location = self.indian_tech_cities.get(city.lower(), city)
+                
+                # Create search parameters for this city
+                params = JobSearchParams(
+                    keywords=role,
+                    location=linkedin_location,
+                    experience_level=experience_level,
+                    limit=limit // len(preferred_cities) + 5,  # Distribute limit across cities
+                    posted_days=7,  # Recent jobs only
+                    remote=False  # Focus on local opportunities
+                )
+                
+                city_jobs = await self.search_jobs(params)
+                
+                # Filter for tech relevance
+                tech_jobs = [job for job in city_jobs if self._is_tech_relevant(job)]
+                all_jobs.extend(tech_jobs)
+                
+                # Rate limiting between cities
+                await self._rate_limit()
+                
+            except Exception as e:
+                self.logger.error(f"Error scraping LinkedIn jobs for {city}: {str(e)}")
+                continue
+        
+        # Remove duplicates and prioritize by relevance
+        unique_jobs = self._deduplicate_jobs(all_jobs)
+        return unique_jobs[:limit]
+    
+    def _is_tech_relevant(self, job: ScrapedJob) -> bool:
+        """Check if job is relevant to tech roles."""
+        text_to_check = f"{job.title} {job.description or ''} {job.requirements or ''}".lower()
+        
+        # Check for tech keywords
+        for keyword in self.tech_keywords:
+            if keyword in text_to_check:
+                return True
+        
+        # Check for common tech terms
+        tech_terms = [
+            'software', 'developer', 'engineer', 'programming', 'coding',
+            'python', 'java', 'javascript', 'react', 'node', 'aws', 'cloud',
+            'api', 'database', 'sql', 'nosql', 'microservices', 'devops'
+        ]
+        
+        for term in tech_terms:
+            if term in text_to_check:
+                return True
+                
+        return False
+    
+    def _deduplicate_jobs(self, jobs: List[ScrapedJob]) -> List[ScrapedJob]:
+        """Remove duplicate jobs based on title and company."""
+        seen = set()
+        unique_jobs = []
+        
+        for job in jobs:
+            job_key = f"{job.title}_{job.company}".lower().strip()
+            if job_key not in seen:
+                seen.add(job_key)
+                unique_jobs.append(job)
+        
+        return unique_jobs

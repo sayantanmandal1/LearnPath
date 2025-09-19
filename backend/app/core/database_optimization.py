@@ -89,14 +89,20 @@ class DatabasePerformanceMonitor:
         """Get connection pool status"""
         try:
             pool = engine.pool
-            if isinstance(pool, QueuePool):
-                return {
+            if hasattr(pool, 'size'):
+                pool_status = {
                     "size": pool.size(),
                     "checked_in": pool.checkedin(),
                     "checked_out": pool.checkedout(),
-                    "overflow": pool.overflow(),
-                    "invalid": pool.invalid()
                 }
+                
+                # Only add overflow and invalid if they exist
+                if hasattr(pool, 'overflow'):
+                    pool_status["overflow"] = pool.overflow()
+                if hasattr(pool, 'invalid'):
+                    pool_status["invalid"] = pool.invalid()
+                    
+                return pool_status
         except Exception as e:
             logger.error("Failed to get pool status", error=str(e))
         
@@ -309,8 +315,9 @@ class DatabaseOptimizer:
             recommendations = []
             
             # Check pool utilization
-            if isinstance(pool_status.get("checked_out", 0), int):
-                utilization = pool_status["checked_out"] / settings.DATABASE_POOL_SIZE
+            checked_out = pool_status.get("checked_out", 0)
+            if isinstance(checked_out, int) and settings.DATABASE_POOL_SIZE > 0:
+                utilization = checked_out / settings.DATABASE_POOL_SIZE
                 
                 if utilization > 0.8:
                     recommendations.append({

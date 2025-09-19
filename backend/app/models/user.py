@@ -64,8 +64,9 @@ class User(Base):
         nullable=True
     )
     
-    # Relationship to user profile
+    # Relationships
     profile = relationship("UserProfile", back_populates="user", uselist=False)
+    job_applications = relationship("JobApplication", back_populates="user")
     
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email={self.email})>"

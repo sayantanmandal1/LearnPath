@@ -10,6 +10,8 @@ import { Separator } from './ui/separator';
 import { Switch } from './ui/switch';
 import { supabase } from '../utils/supabase/client';
 import { toast } from 'sonner';
+import { ResumeUpload } from './ResumeUpload';
+import { PlatformConnection } from './PlatformConnection';
 import {
   User,
   Mail,
@@ -23,7 +25,10 @@ import {
   Trophy,
   Target,
   BookOpen,
-  Award
+  Award,
+  Upload,
+  FileText,
+  X
 } from 'lucide-react';
 
 interface Achievement {
@@ -41,6 +46,8 @@ interface Activity {
 
 export function Profile() {
   const [isEditing, setIsEditing] = useState(false);
+  const [showResumeUpload, setShowResumeUpload] = useState(false);
+  const [showPlatformConnection, setShowPlatformConnection] = useState(false);
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -200,6 +207,20 @@ export function Profile() {
     }
   };
 
+  const handleResumeUploadComplete = (resumeData: any) => {
+    // Update profile with resume data
+    setProfile(prev => ({
+      ...prev,
+      name: resumeData.personal_info.name || prev.name,
+      bio: resumeData.personal_info.bio || prev.bio,
+      location: resumeData.personal_info.location || prev.location,
+      title: resumeData.experience?.[0]?.title || prev.title,
+    }));
+    
+    setShowResumeUpload(false);
+    toast.success('Resume data integrated into your profile!');
+  };
+
   if (loading) {
     return <div className="pt-16 min-h-screen flex items-center justify-center text-muted-foreground">Loading profile...</div>;
   }
@@ -299,10 +320,20 @@ export function Profile() {
                       <Button variant="outline" onClick={() => setIsEditing(false)} disabled={loading}>Cancel</Button>
                     </>
                   ) : (
-                    <Button onClick={() => setIsEditing(true)}>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit Profile
-                    </Button>
+                    <>
+                      <Button onClick={() => setIsEditing(true)}>
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit Profile
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowResumeUpload(true)}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload Resume
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowPlatformConnection(true)}>
+                        <LinkIcon className="w-4 h-4 mr-2" />
+                        Connect Platforms
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
@@ -472,6 +503,58 @@ export function Profile() {
           </div>
         </div>
       </div>
+
+      {/* Resume Upload Modal */}
+      {showResumeUpload && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Upload Resume</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowResumeUpload(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="p-4">
+              <ResumeUpload
+                onUploadComplete={handleResumeUploadComplete}
+                onCancel={() => setShowResumeUpload(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Platform Connection Modal */}
+      {showPlatformConnection && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Platform Connections</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPlatformConnection(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="p-4">
+              <PlatformConnection
+                onConnectionUpdate={(accounts) => {
+                  // Handle platform connection updates
+                  console.log('Platform accounts updated:', accounts);
+                  toast.success('Platform connections updated!');
+                }}
+                onCancel={() => setShowPlatformConnection(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

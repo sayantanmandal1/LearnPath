@@ -443,3 +443,80 @@ class ProcessingError(APIException):
             recovery_suggestions=recovery_suggestions,
             user_friendly_message="We couldn't process your file. Please try a different format or enter the information manually."
         )
+
+# Additional exceptions for enhanced dashboard functionality
+class ScrapingError(ExternalAPIException):
+    """General scraping errors"""
+    
+    def __init__(self, detail: str, original_error: Optional[Exception] = None):
+        super().__init__(
+            service="Web Scraper",
+            detail=detail,
+            original_error=original_error
+        )
+
+
+class MatchingError(ServiceException):
+    """Job matching service errors"""
+    
+    def __init__(self, message: str):
+        super().__init__(message, "MATCHING_ERROR")
+
+
+class DataSyncError(APIException):
+    """Data synchronization errors"""
+    
+    def __init__(
+        self,
+        detail: str,
+        sync_operation: Optional[str] = None,
+        original_error: Optional[Exception] = None,
+    ):
+        recovery_suggestions = [
+            "Data synchronization failed",
+            "Please try again in a few minutes",
+            "Check your network connection"
+        ]
+        
+        super().__init__(
+            status_code=503,
+            detail=f"Data sync error: {detail}",
+            error_code="DATA_SYNC_ERROR",
+            details={
+                "sync_operation": sync_operation,
+                "original_error": str(original_error) if original_error else None,
+            },
+            recovery_suggestions=recovery_suggestions,
+            user_friendly_message="We're having trouble syncing your data. Please try again later."
+        )
+
+
+class ConflictResolutionError(APIException):
+    """Data conflict resolution errors"""
+    
+    def __init__(
+        self,
+        detail: str,
+        conflict_type: Optional[str] = None,
+        conflicting_fields: Optional[List[str]] = None,
+    ):
+        recovery_suggestions = [
+            "Data conflict detected",
+            "Please review and resolve the conflicts manually",
+            "Choose which version of the data to keep"
+        ]
+        
+        if conflicting_fields:
+            recovery_suggestions.append(f"Conflicting fields: {', '.join(conflicting_fields)}")
+        
+        super().__init__(
+            status_code=409,
+            detail=f"Conflict resolution error: {detail}",
+            error_code="CONFLICT_RESOLUTION_ERROR",
+            details={
+                "conflict_type": conflict_type,
+                "conflicting_fields": conflicting_fields,
+            },
+            recovery_suggestions=recovery_suggestions,
+            user_friendly_message="We found conflicting data that needs your attention to resolve."
+        )

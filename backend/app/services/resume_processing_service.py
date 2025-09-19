@@ -269,7 +269,7 @@ class ResumeProcessingService:
     
     async def _parse_with_gemini(self, text: str) -> ParsedResumeData:
         """
-        Parse extracted text using Gemini API
+        Parse extracted text using Gemini API with enhanced error handling
         
         Args:
             text: Extracted resume text
@@ -277,6 +277,9 @@ class ResumeProcessingService:
         Returns:
             ParsedResumeData: Structured resume data
         """
+        from app.core.error_handling_decorators import with_gemini_error_handling
+        from app.core.exceptions import MLModelError
+        
         if not self.gemini_api_key:
             logger.warning("Gemini API key not configured, using fallback parsing")
             return await self._fallback_parsing(text)
@@ -298,15 +301,55 @@ class ResumeProcessingService:
                     }
                 )
                 
-                if response.status_code != 200:
+                # Enhanced error handling for different response codes
+                if response.status_code == 401:
+                    logger.error("Gemini API authentication failed")
+                    return await self._fallback_parsing(text)
+                elif response.status_code == 403:
+                    logger.error("Gemini API access forbidden")
+                    return await self._fallback_parsing(text)
+                elif response.status_code == 429:
+                    logger.warning("Gemini API rate limit exceeded, using fallback")
+                    return await self._fallback_parsing(text)
+                elif response.status_code == 503:
+                    logger.warning("Gemini API service unavailable, using fallback")
+                    return await self._fallback_parsing(text)
+                elif response.status_code != 200:
                     logger.error(f"Gemini API error: {response.status_code} - {response.text}")
                     return await self._fallback_parsing(text)
                 
                 result = response.json()
-                parsed_content = result["candidates"][0]["content"]["parts"][0]["text"]
+                
+                # Check for API errors in response
+                if "error" in result:
+                    logger.error(f"Gemini API returned error: {result['error']}")
+                    return await self._fallback_parsing(text)
+                
+                if "candidates" not in result or not result["candidates"]:
+                    logger.warning("Gemini API returned no candidates, using fallback")
+                    return await self._fallback_parsing(text)
+                
+                candidate = result["candidates"][0]
+                
+                # Check for content filtering
+                if candidate.get("finishReason") == "SAFETY":
+                    logger.warning("Gemini API filtered content for safety, using fallback")
+                    return await self._fallback_parsing(text)
+                
+                if "content" not in candidate or "parts" not in candidate["content"]:
+                    logger.warning("Gemini API returned malformed response, using fallback")
+                    return await self._fallback_parsing(text)
+                
+                parsed_content = candidate["content"]["parts"][0]["text"]
                 
                 return await self._parse_gemini_response(parsed_content)
                 
+        except httpx.TimeoutException:
+            logger.warning("Gemini API request timed out, using fallback parsing")
+            return await self._fallback_parsing(text)
+        except httpx.ConnectError:
+            logger.warning("Failed to connect to Gemini API, using fallback parsing")
+            return await self._fallback_parsing(text)
         except Exception as e:
             logger.error(f"Gemini API parsing failed: {str(e)}")
             return await self._fallback_parsing(text)

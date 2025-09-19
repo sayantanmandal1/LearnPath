@@ -1,5 +1,5 @@
 """
-Advanced caching service with intelligent cache invalidation strategies
+Advanced caching service with intelligent cache invalidation strategies and analysis result optimization
 """
 import json
 import hashlib
@@ -49,6 +49,31 @@ class CacheKeyBuilder:
     @staticmethod
     def analytics_data(user_id: str, report_type: str) -> str:
         return f"analytics:{user_id}:{report_type}"
+    
+    @staticmethod
+    def analysis_result(user_id: str, analysis_type: str, params_hash: str = None) -> str:
+        """Cache key for analysis results (skill assessment, career recommendations, etc.)"""
+        if params_hash:
+            return f"analysis:{user_id}:{analysis_type}:{params_hash}"
+        return f"analysis:{user_id}:{analysis_type}"
+    
+    @staticmethod
+    def resume_analysis(user_id: str) -> str:
+        return f"resume_analysis:{user_id}"
+    
+    @staticmethod
+    def platform_data(user_id: str, platform: str) -> str:
+        return f"platform_data:{user_id}:{platform}"
+    
+    @staticmethod
+    def job_recommendations(user_id: str, location: str = None) -> str:
+        if location:
+            return f"job_rec:{user_id}:{location}"
+        return f"job_rec:{user_id}"
+    
+    @staticmethod
+    def dashboard_data(user_id: str) -> str:
+        return f"dashboard:{user_id}"
 
 
 class CacheInvalidationStrategy:
@@ -83,6 +108,24 @@ class CacheInvalidationStrategy:
             await self.redis.delete(f"ext_api:{service}:{identifier}")
         else:
             await self._delete_pattern(f"ext_api:{service}:*")
+    
+    async def invalidate_analysis_cache(self, user_id: str, analysis_type: str = None) -> None:
+        """Invalidate analysis result cache for a user"""
+        if analysis_type:
+            await self._delete_pattern(f"analysis:{user_id}:{analysis_type}:*")
+        else:
+            await self._delete_pattern(f"analysis:{user_id}:*")
+    
+    async def invalidate_dashboard_cache(self, user_id: str) -> None:
+        """Invalidate dashboard cache for a user"""
+        patterns = [
+            f"dashboard:{user_id}",
+            f"job_rec:{user_id}:*",
+            f"analytics:{user_id}:*"
+        ]
+        
+        for pattern in patterns:
+            await self._delete_pattern(pattern)
     
     async def _delete_pattern(self, pattern: str) -> None:
         """Delete all keys matching a pattern"""

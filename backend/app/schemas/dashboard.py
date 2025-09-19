@@ -161,3 +161,69 @@ class DashboardConfiguration(BaseModel):
     share_progress: bool = False
     
     updated_at: datetime
+
+
+class SkillRadarData(BaseModel):
+    """Skill radar chart data for dashboard visualization"""
+    user_id: str
+    skill_categories: Dict[str, Dict[str, float]]  # category -> {skill: proficiency}
+    skill_strengths: List[str]
+    skill_gaps: List[str]
+    improvement_areas: List[str]
+    overall_scores: Dict[str, float]
+    chart_config: Dict[str, Any]
+    market_comparison: Optional[Dict[str, Any]] = None
+    generated_at: str
+
+
+class CareerProgressData(BaseModel):
+    """Career progress tracking data"""
+    user_id: str
+    tracking_period_days: int
+    overall_progress: float
+    career_score_trend: List[Dict[str, Any]]
+    skill_improvements: List[Dict[str, Any]]
+    progress_timeline: List[Dict[str, Any]]
+    progress_metrics: Dict[str, Any]
+    milestones: List[Dict[str, Any]]
+    milestone_completion_rate: float
+    trajectory_predictions: Optional[Dict[str, Any]] = None
+    milestone_tracking: Optional[Dict[str, Any]] = None
+    generated_at: str
+
+
+class JobRecommendationData(BaseModel):
+    """Job recommendation data with personalized matching"""
+    user_id: str
+    target_role: Optional[str]
+    inferred_target_role: Optional[str]
+    preferred_cities: Optional[List[str]]
+    min_match_score: float
+    total_matches: int
+    filtered_matches: int
+    recommendations: List[Dict[str, Any]]
+    recommendation_summary: Dict[str, Any]
+    market_insights: Optional[Dict[str, Any]] = None
+    generated_at: str
+
+
+class ComprehensiveDashboardData(BaseModel):
+    """Comprehensive dashboard data aggregation"""
+    user_id: str
+    dashboard_summary: Dict[str, Any]
+    skill_radar: Optional[Dict[str, Any]] = None
+    career_progress: Optional[Dict[str, Any]] = None
+    job_recommendations: Optional[Dict[str, Any]] = None
+    generated_at: str
+
+
+class RealTimeAnalysisData(BaseModel):
+    """Real-time analysis results from AI service"""
+    user_id: str
+    analysis_timestamp: str
+    skill_assessment: Optional[Dict[str, Any]] = None
+    career_recommendations: Optional[List[Dict[str, Any]]] = None
+    learning_paths: Optional[List[Dict[str, Any]]] = None
+    project_suggestions: Optional[List[Dict[str, Any]]] = None
+    market_insights: Optional[Dict[str, Any]] = None
+    is_fresh_analysis: bool

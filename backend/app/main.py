@@ -16,6 +16,7 @@ from app.core.redis import redis_manager
 from app.middleware.error_handler import ErrorHandlerMiddleware
 from app.middleware.logging import LoggingMiddleware
 from app.middleware.metrics import MetricsMiddleware
+from app.middleware.performance_tracking import PerformanceTrackingMiddleware
 from app.core.rate_limiting import RateLimitMiddleware
 from app.api.v1.router import api_router
 from app.services.performance_monitoring import performance_monitor
@@ -23,6 +24,7 @@ from app.core.monitoring import system_monitor
 from app.core.graceful_degradation import degradation_manager
 from app.core.alerting import alerting_system
 from app.services.data_pipeline.pipeline_initializer import initialize_pipeline_automation, shutdown_pipeline_automation
+from app.services.background_monitoring_service import background_monitoring_service
 
 logger = structlog.get_logger()
 
@@ -49,9 +51,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as e:
             logger.warning("Redis connection failed, continuing without Redis", error=str(e))
     
+    # Start background monitoring service
+    try:
+        await background_monitoring_service.start_monitoring()
+        logger.info("Background monitoring service started")
+    except Exception as e:
+        logger.warning("Failed to start background monitoring service", error=str(e))
+    
     yield
     
     # Shutdown
+    # Stop background monitoring service
+    try:
+        await background_monitoring_service.stop_monitoring()
+        logger.info("Background monitoring service stopped")
+    except Exception as e:
+        logger.warning("Failed to stop background monitoring service", error=str(e))
+    
     if settings.REDIS_URL:
         try:
             await redis_manager.disconnect()
@@ -219,6 +235,7 @@ def create_application() -> FastAPI:
     try:
         app.add_middleware(ErrorHandlerMiddleware)
         app.add_middleware(LoggingMiddleware)
+        app.add_middleware(PerformanceTrackingMiddleware)
     except Exception as e:
         logger.warning("Failed to add some middleware, continuing", error=str(e))
 

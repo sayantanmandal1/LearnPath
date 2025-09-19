@@ -9,6 +9,7 @@ import { Onboarding } from './components/Onboarding';
 import { Profile } from './components/Profile';
 import { Analysis } from './components/Analysis';
 import { About } from './components/About';
+import { AnimatedVisualizationsDemo } from './components/AnimatedVisualizationsDemo';
 import { Features } from './components/Features';
 import { FAQ } from './components/FAQ';
 import { NotFound } from './components/NotFound';
@@ -89,10 +90,28 @@ function AppContent() {
 
   // Only require onboarding for protected routes
   const protectedRoutes = ['/dashboard', '/profile', '/analysis'];
-  if (needsOnboarding && protectedRoutes.includes(window.location.pathname)) {
-    if (window.location.pathname !== '/onboarding') {
-      window.location.replace('/onboarding');
-      return null;
+  const currentPath = window.location.pathname;
+  
+  if (needsOnboarding && protectedRoutes.includes(currentPath)) {
+    if (currentPath !== '/onboarding') {
+      // Use React Router navigation instead of window.location.replace to prevent infinite loops
+      return (
+        <Router>
+          <Routes>
+            <Route path="*" element={
+              <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                  <h2 className="text-xl font-semibold mb-4">Complete Your Profile</h2>
+                  <p className="text-gray-600 mb-4">Please complete your onboarding to access the dashboard.</p>
+                  <Link to="/onboarding" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    Complete Onboarding
+                  </Link>
+                </div>
+              </div>
+            } />
+          </Routes>
+        </Router>
+      );
     }
     // Show only logo and onboarding card
     return (
@@ -126,12 +145,13 @@ function AppContent() {
           <AnimatePresence mode="wait">
             <Routes>
               <Route path="/" element={<LandingPage onLogin={() => setShowLoginModal(true)} />} />
-              <Route path="/dashboard" element={isLoggedIn ? <Dashboard /> : <LandingPage onLogin={() => setShowLoginModal(true)} />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/profile" element={isLoggedIn ? <Profile /> : <LandingPage onLogin={() => setShowLoginModal(true)} />} />
-              <Route path="/analysis" element={isLoggedIn ? <Analysis /> : <LandingPage onLogin={() => setShowLoginModal(true)} />} />
+              <Route path="/analysis" element={<Analysis />} />
               <Route path="/about" element={<About />} />
               <Route path="/features" element={<Features />} />
               <Route path="/faq" element={<FAQ />} />
+              <Route path="/visualizations" element={<AnimatedVisualizationsDemo />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

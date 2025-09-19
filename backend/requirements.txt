@@ -47,3 +47,6 @@ email-validator==2.1.0
 reportlab==4.0.7
 matplotlib==3.8.2
 Pillow==10.1.0
+
+# Supabase integration
+supabase==2.3.4

@@ -67,6 +67,23 @@ class RedisManager:
             logger.error("Redis SET operation failed", key=key, error=str(e))
             return False
     
+    async def setex(
+        self,
+        key: str,
+        ttl: int,
+        value: Union[str, dict, list],
+    ) -> bool:
+        """Set a key-value pair with TTL (Redis setex format)"""
+        try:
+            if isinstance(value, (dict, list)):
+                value = json.dumps(value)
+            
+            result = await self.redis.setex(key, ttl, value)
+            return result
+        except Exception as e:
+            logger.error("Redis SETEX operation failed", key=key, error=str(e))
+            return False
+    
     async def get(self, key: str) -> Optional[Any]:
         """Get value by key"""
         try:
@@ -166,3 +183,11 @@ async def get_redis() -> RedisManager:
     if not redis_manager._redis:
         await redis_manager.connect()
     return redis_manager
+# Global Redis manager instance
+redis_manager = RedisManager()
+
+async def get_redis_client() -> Redis:
+    """Get Redis client instance"""
+    if not redis_manager._redis:
+        await redis_manager.connect()
+    return redis_manager.redis
