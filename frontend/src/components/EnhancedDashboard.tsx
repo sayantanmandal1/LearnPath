@@ -12,7 +12,7 @@ import { motion } from 'motion/react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { supabase } from '../utils/supabase/client';
+import { useAuth } from '../contexts/AuthContext';
 import {
     TrendingUp,
     Target,
@@ -76,13 +76,14 @@ export function EnhancedDashboard() {
         preferredCities: ['Bangalore', 'Hyderabad', 'Pune', 'Chennai', 'Mumbai', 'Delhi NCR'],
     });
 
+    // Get user from auth context instead of Supabase
+    const { user: authUser } = useAuth();
+    
     useEffect(() => {
-        const getUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
-        };
-        getUser();
-    }, []);
+        if (authUser) {
+            setUser(authUser);
+        }
+    }, [authUser]);
 
     const handleRefreshAll = async () => {
         setRefreshing(true);
@@ -284,7 +285,7 @@ export function EnhancedDashboard() {
                 >
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">
-                            Welcome back, {user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'}!
+                            Welcome back, {user?.full_name || user?.email?.split('@')[0] || 'User'}!
                         </h1>
                         <div className="flex items-center space-x-4 text-gray-600 mt-1">
                             <p>Here's your real-time career analysis</p>

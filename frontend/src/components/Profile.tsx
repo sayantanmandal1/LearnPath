@@ -79,7 +79,7 @@ export function Profile() {
         setLoading(false);
         return;
       }
-      await supabase.from('profiles').delete().eq('id', user.id);
+      await supabase.from('user_profiles').delete().eq('id', user.id);
       // @ts-ignore
       await supabase.auth.admin.deleteUser(user.id);
       toast.success('Account deleted.');
@@ -101,7 +101,7 @@ export function Profile() {
         setLoading(false);
         return;
       }
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      const { data, error } = await supabase.from('user_profiles').select('*').eq('id', user.id).single();
       if (!error && data) {
         setProfile({
           name: data.name || '',
@@ -126,7 +126,7 @@ export function Profile() {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) return setAchievements([]);
       const { data, error } = await supabase
-        .from('User Achievements')
+        .from('achievements')
         .select('*')
         .eq('user_id', user.id)
         .order('date', { ascending: false });
@@ -140,7 +140,7 @@ export function Profile() {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) return setRecentActivities([]);
       const { data, error } = await supabase
-        .from('User Activity Log')
+        .from('activities')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -154,7 +154,7 @@ export function Profile() {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) return;
       const { data, error } = await supabase
-        .from('User Skills Table')
+        .from('skills')
         .select('*')
         .eq('user_id', user.id)
         .single();
@@ -183,7 +183,7 @@ export function Profile() {
         setLoading(false);
         return;
       }
-      const { error } = await supabase.from('profiles').upsert({
+      const { error } = await supabase.from('user_profiles').upsert({
         id: user.id,
         name: profile.name,
         location: profile.location,

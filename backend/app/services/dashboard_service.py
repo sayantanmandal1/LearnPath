@@ -63,7 +63,8 @@ class DashboardService:
             if self.profile_service:
                 profile = await self.profile_service.get_profile(user_id)
                 if not profile:
-                    raise ServiceException(f"Profile not found for user {user_id}")
+                    # Return a "needs analysis" dashboard state instead of raising exception
+                    return await self._create_needs_analysis_dashboard(user_id)
             else:
                 # Create mock profile when service unavailable
                 profile = self._create_mock_profile(user_id)
@@ -800,3 +801,87 @@ class DashboardService:
             "career_recommendations": self._get_mock_career_recommendations(),
             "learning_paths": self._get_mock_learning_paths()
         }
+    
+    async def _create_needs_analysis_dashboard(self, user_id: str) -> DashboardSummary:
+        """
+        Create a dashboard state for users who haven't completed their profile analysis.
+        This provides a clear call-to-action while showing zero values for all metrics.
+        """
+        return DashboardSummary(
+            user_id=user_id,
+            overall_career_score=0.0,
+            profile_completion=0.0,
+            key_metrics=[
+                DashboardMetric(
+                    title="Career Score",
+                    value="0/100",
+                    change="+0 pts",
+                    trend="neutral",
+                    description="Complete your analysis to get your career score"
+                ),
+                DashboardMetric(
+                    title="Job Matches",
+                    value="0",
+                    change="Pending analysis",
+                    trend="neutral",
+                    description="Get personalized job recommendations"
+                ),
+                DashboardMetric(
+                    title="Skills Tracked",
+                    value="0",
+                    change="Add skills",
+                    trend="neutral",
+                    description="Track your skill development"
+                ),
+                DashboardMetric(
+                    title="Learning Progress",
+                    value="0",
+                    change="0 paths",
+                    trend="neutral",
+                    description="Start your learning journey"
+                )
+            ],
+            active_milestones=[],
+            completed_milestones_count=0,
+            total_milestones_count=0,
+            top_recommendations=[
+                DashboardRecommendation(
+                    title="Complete Your Profile Analysis",
+                    description="Upload your resume and connect your profiles to get personalized insights",
+                    confidence_score=10.0,
+                    type="profile_setup",
+                    priority="high"
+                ),
+                DashboardRecommendation(
+                    title="Connect Your GitHub Profile",
+                    description="Link your GitHub to analyze your coding skills and projects",
+                    confidence_score=9.0,
+                    type="profile_setup",
+                    priority="medium"
+                ),
+                DashboardRecommendation(
+                    title="Add Your Skills",
+                    description="Tell us about your technical and soft skills for better recommendations",
+                    confidence_score=8.0,
+                    type="profile_setup",
+                    priority="medium"
+                )
+            ],
+            recent_activities=[
+                DashboardActivity(
+                    title="Account Created",
+                    description="Welcome to CareerPilot! Complete your profile to get started.",
+                    timestamp=datetime.utcnow(),
+                    type="account",
+                    status="completed"
+                )
+            ],
+            skills_count=0,
+            job_matches_count=0,
+            learning_paths_count=0,
+            last_analysis_date=None,
+            last_profile_update=None,
+            generated_at=datetime.utcnow(),
+            analysis_status="pending",
+            needs_analysis=True
+        )

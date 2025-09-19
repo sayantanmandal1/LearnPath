@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Briefcase, 
-  MapPin, 
-  DollarSign, 
-  Clock, 
-  Star, 
-  TrendingUp, 
-  CheckCircle, 
+import {
+  Briefcase,
+  MapPin,
+  DollarSign,
+  Clock,
+  Star,
+  TrendingUp,
+  CheckCircle,
   XCircle,
   AlertTriangle,
   ExternalLink,
@@ -42,9 +42,9 @@ interface JobCompatibilityIndicatorsProps {
   maxJobs?: number;
 }
 
-export function JobCompatibilityIndicators({ 
-  jobMatches, 
-  title = "Job Compatibility Analysis", 
+export function JobCompatibilityIndicators({
+  jobMatches,
+  title = "Job Compatibility Analysis",
   className = "",
   maxJobs = 5
 }: JobCompatibilityIndicatorsProps) {
@@ -140,11 +140,7 @@ export function JobCompatibilityIndicators({
     visible: {
       opacity: 1,
       y: 0,
-      scale: 1,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut"
-      }
+      scale: 1
     }
   };
 
@@ -165,7 +161,7 @@ export function JobCompatibilityIndicators({
         >
           {title}
         </motion.h3>
-        
+
         <motion.div
           className="flex items-center space-x-3"
           initial={{ opacity: 0, x: 20 }}
@@ -223,6 +219,11 @@ export function JobCompatibilityIndicators({
           <motion.div
             key={job.id}
             variants={jobCardVariants}
+            transition={{
+              duration: 0.5,
+              ease: "easeOut",
+              delay: index * 0.1
+            }}
             className="border border-gray-200 rounded-lg p-5 hover:shadow-lg transition-all duration-300 cursor-pointer"
             onClick={() => setSelectedJob(selectedJob === job.id ? null : job.id)}
             whileHover={{ scale: 1.01, y: -2 }}
@@ -256,7 +257,7 @@ export function JobCompatibilityIndicators({
                   </div>
                 </div>
               </div>
-              
+
               {/* Actions */}
               <div className="flex items-center space-x-2">
                 <motion.button
@@ -264,23 +265,21 @@ export function JobCompatibilityIndicators({
                     e.stopPropagation();
                     toggleLike(job.id);
                   }}
-                  className={`p-2 rounded-full transition-colors ${
-                    likedJobs.has(job.id) ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:text-red-500'
-                  }`}
+                  className={`p-2 rounded-full transition-colors ${likedJobs.has(job.id) ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:text-red-500'
+                    }`}
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                 >
                   <Heart className={`w-5 h-5 ${likedJobs.has(job.id) ? 'fill-current' : ''}`} />
                 </motion.button>
-                
+
                 <motion.button
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleBookmark(job.id);
                   }}
-                  className={`p-2 rounded-full transition-colors ${
-                    bookmarkedJobs.has(job.id) ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-blue-500'
-                  }`}
+                  className={`p-2 rounded-full transition-colors ${bookmarkedJobs.has(job.id) ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-blue-500'
+                    }`}
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                 >
@@ -297,21 +296,20 @@ export function JobCompatibilityIndicators({
                   {job.matchScore}%
                 </span>
               </div>
-              
+
               <div className="relative">
                 <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                   <motion.div
-                    className={`h-full rounded-full ${
-                      job.matchScore >= 80 ? 'bg-gradient-to-r from-green-400 to-green-600' :
-                      job.matchScore >= 60 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
-                      'bg-gradient-to-r from-red-400 to-red-600'
-                    }`}
+                    className={`h-full rounded-full ${job.matchScore >= 80 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                        job.matchScore >= 60 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                          'bg-gradient-to-r from-red-400 to-red-600'
+                      }`}
                     initial={{ width: 0 }}
                     animate={{ width: `${job.matchScore}%` }}
                     transition={{ duration: 1.5, delay: index * 0.2 + 0.5, ease: "easeOut" }}
                   />
                 </div>
-                
+
                 {/* Score indicator */}
                 <motion.div
                   className="absolute top-0 h-3 w-1 bg-white border-2 border-gray-400 rounded-full"
@@ -349,7 +347,7 @@ export function JobCompatibilityIndicators({
                   )}
                 </div>
               </div>
-              
+
               <div>
                 <h5 className="text-sm font-medium text-red-700 mb-2 flex items-center">
                   <XCircle className="w-4 h-4 mr-1" />
@@ -445,7 +443,7 @@ export function JobCompatibilityIndicators({
                         <ExternalLink className="w-4 h-4" />
                         <span>View Job</span>
                       </motion.a>
-                      
+
                       <motion.button
                         className="flex items-center space-x-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
                         whileHover={{ scale: 1.05 }}

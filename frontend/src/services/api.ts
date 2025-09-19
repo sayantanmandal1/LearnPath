@@ -1,5 +1,6 @@
 /**
  * API service for making authenticated requests to the backend
+ * Updated to work with backend JWT authentication instead of Supabase for data operations
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';

@@ -32,7 +32,7 @@ export function Onboarding() {
         return;
       }
       // Upsert profile info
-      const { error } = await supabase.from('profiles').upsert({
+      const { error } = await supabase.from('user_profiles').upsert({
         id: user.id,
         name: form.name,
         career_goal: form.careerGoal,

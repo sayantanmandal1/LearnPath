@@ -18,10 +18,10 @@ interface CareerTrajectoryRoadmapProps {
   className?: string;
 }
 
-export function CareerTrajectoryRoadmap({ 
-  steps, 
-  title = "Career Trajectory", 
-  className = "" 
+export function CareerTrajectoryRoadmap({
+  steps,
+  title = "Career Trajectory",
+  className = ""
 }: CareerTrajectoryRoadmapProps) {
   const [visibleSteps, setVisibleSteps] = useState<number>(0);
   const [selectedStep, setSelectedStep] = useState<string | null>(null);
@@ -42,10 +42,9 @@ export function CareerTrajectoryRoadmap({
   }, [steps.length]);
 
   const getStepIcon = (type: string, status: string) => {
-    const iconClass = `w-5 h-5 ${
-      status === 'completed' ? 'text-green-600' : 
+    const iconClass = `w-5 h-5 ${status === 'completed' ? 'text-green-600' :
       status === 'current' ? 'text-blue-600' : 'text-gray-400'
-    }`;
+      }`;
 
     switch (type) {
       case 'milestone':
@@ -88,11 +87,7 @@ export function CareerTrajectoryRoadmap({
     visible: {
       opacity: 1,
       x: 0,
-      scale: 1,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut"
-      }
+      scale: 1
     }
   };
 
@@ -115,13 +110,13 @@ export function CareerTrajectoryRoadmap({
       <div className="relative">
         {/* Progress line */}
         <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-        
+
         {/* Animated progress line */}
         <motion.div
           className="absolute left-8 top-0 w-0.5 bg-blue-500"
           initial={{ height: 0 }}
-          animate={{ 
-            height: `${(steps.filter(s => s.status === 'completed').length / steps.length) * 100}%` 
+          animate={{
+            height: `${(steps.filter(s => s.status === 'completed').length / steps.length) * 100}%`
           }}
           transition={{ duration: 2, delay: 0.5, ease: "easeOut" }}
         />
@@ -134,6 +129,11 @@ export function CareerTrajectoryRoadmap({
                   variants={stepVariants}
                   initial="hidden"
                   animate="visible"
+                  transition={{
+                    duration: 0.5,
+                    ease: "easeOut",
+                    delay: index * 0.2
+                  }}
                   className="relative flex items-start space-x-4 cursor-pointer"
                   onClick={() => setSelectedStep(selectedStep === step.id ? null : step.id)}
                   whileHover={{ scale: 1.02 }}
@@ -148,7 +148,7 @@ export function CareerTrajectoryRoadmap({
                     transition={{ delay: index * 0.2 + 0.3, duration: 0.4, type: "spring" }}
                   >
                     {getStepIcon(step.type, step.status)}
-                    
+
                     {/* Pulse animation for current step */}
                     {step.status === 'current' && (
                       <motion.div
@@ -174,9 +174,9 @@ export function CareerTrajectoryRoadmap({
                           {step.timeframe}
                         </div>
                       </div>
-                      
+
                       <p className="text-gray-600 mb-3">{step.description}</p>
-                      
+
                       {/* Skills tags */}
                       <div className="flex flex-wrap gap-2 mb-3">
                         {step.skills.map((skill, skillIndex) => (
@@ -208,31 +208,30 @@ export function CareerTrajectoryRoadmap({
                                 <div className="flex items-center space-x-2">
                                   <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
                                     <motion.div
-                                      className={`h-full ${
-                                        step.status === 'completed' ? 'bg-green-500' :
+                                      className={`h-full ${step.status === 'completed' ? 'bg-green-500' :
                                         step.status === 'current' ? 'bg-blue-500' : 'bg-gray-300'
-                                      }`}
+                                        }`}
                                       initial={{ width: 0 }}
-                                      animate={{ 
-                                        width: step.status === 'completed' ? '100%' : 
-                                               step.status === 'current' ? '60%' : '0%' 
+                                      animate={{
+                                        width: step.status === 'completed' ? '100%' :
+                                          step.status === 'current' ? '60%' : '0%'
                                       }}
                                       transition={{ duration: 1, delay: 0.5 }}
                                     />
                                   </div>
                                   <span className="text-gray-500">
-                                    {step.status === 'completed' ? '100%' : 
-                                     step.status === 'current' ? '60%' : '0%'}
+                                    {step.status === 'completed' ? '100%' :
+                                      step.status === 'current' ? '60%' : '0%'}
                                   </span>
                                 </div>
                               </div>
-                              
+
                               {step.status === 'current' && (
                                 <div className="text-sm text-blue-600 font-medium">
                                   🎯 Currently working on this step
                                 </div>
                               )}
-                              
+
                               {step.status === 'upcoming' && (
                                 <div className="text-sm text-gray-500">
                                   📅 Scheduled to start soon

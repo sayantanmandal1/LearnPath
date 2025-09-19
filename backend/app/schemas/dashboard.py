@@ -8,11 +8,10 @@ from pydantic import BaseModel, Field
 
 class DashboardMetric(BaseModel):
     """Individual dashboard metric"""
-    name: str
-    value: Any
-    change: Optional[float] = None
-    change_type: Optional[str] = Field(None, description="increase, decrease, or stable")
-    unit: Optional[str] = None
+    title: str
+    value: str
+    change: Optional[str] = None
+    trend: Optional[str] = Field(None, description="positive, negative, or neutral")
     description: Optional[str] = None
 
 
@@ -31,23 +30,22 @@ class ProgressMilestone(BaseModel):
 
 class DashboardRecommendation(BaseModel):
     """Dashboard recommendation item"""
-    id: str
     title: str
     description: str
-    type: str  # job, learning, skill, career
-    priority: str = Field(default="medium", description="low, medium, high")
+    confidence_score: float = Field(ge=0, le=10)
+    type: str  # job, learning, skill, career, profile_setup
+    priority: Optional[str] = Field(default="medium", description="low, medium, high")
     action_url: Optional[str] = None
     estimated_time: Optional[str] = None
-    impact_score: Optional[float] = Field(None, ge=0, le=10)
 
 
 class DashboardActivity(BaseModel):
     """Recent user activity"""
-    id: str
-    type: str  # profile_update, analysis_completed, skill_added, etc.
     title: str
     description: str
     timestamp: datetime
+    type: str  # profile_update, analysis_completed, skill_added, etc.
+    status: Optional[str] = Field(default="completed", description="pending, in_progress, completed, failed")
     metadata: Optional[Dict[str, Any]] = None
 
 
@@ -80,6 +78,10 @@ class DashboardSummary(BaseModel):
     last_analysis_date: Optional[datetime] = None
     last_profile_update: Optional[datetime] = None
     generated_at: datetime
+    
+    # Analysis status
+    analysis_status: Optional[str] = Field(default="completed", description="pending, in_progress, completed, error")
+    needs_analysis: Optional[bool] = Field(default=False, description="True if user needs to complete profile analysis")
 
 
 class UserProgressSummary(BaseModel):
