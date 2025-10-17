@@ -36,7 +36,6 @@ import os
 DISABLE_ML = os.getenv('DISABLE_ML', 'false').lower() == 'true'
 
 if not DISABLE_ML:
-    sys.path.append(os.path.join(os.path.dirname(__file__), '../../..', 'machinelearningmodel'))
     
     try:
         from nlp_engine import NLPEngine

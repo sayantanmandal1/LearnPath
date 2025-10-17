@@ -33,11 +33,7 @@ from app.repositories.skill import SkillRepository
 from app.core.exceptions import ServiceException
 
 # Import ML components
-import sys
-import os
-ml_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'machinelearningmodel')
-if ml_path not in sys.path:
-    sys.path.append(ml_path)
+# ML imports are now local to the backend app
 
 try:
     from recommendation_engine import (

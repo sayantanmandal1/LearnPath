@@ -15,7 +15,7 @@ from app.services.market_trend_analyzer import MarketTrendAnalyzer
 from app.repositories.skill import SkillRepository
 from app.repositories.job import JobRepository
 from app.core.database import get_db_session
-from machinelearningmodel.nlp_engine import NLPEngine
+from app.ml.nlp_engine import NLPEngine
 
 logger = get_logger(__name__)
 

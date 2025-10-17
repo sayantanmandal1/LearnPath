@@ -18,9 +18,7 @@ from .vector_db.vector_db_manager import vector_db_manager
 from .vector_db.base_vector_db import VectorRecord, SearchResult, QueryFilter
 
 # Import NLP engine for embedding generation
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../..', 'machinelearningmodel'))
+# ML imports are now local to the backend app
 
 try:
     from nlp_engine import NLPEngine

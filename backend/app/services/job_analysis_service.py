@@ -17,9 +17,7 @@ from app.models.skill import Skill
 from app.core.exceptions import ServiceException as ProcessingError
 
 # Import NLP engine
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../..', 'machinelearningmodel'))
+# ML imports are now local to the backend app
 
 try:
     from nlp_engine import NLPEngine

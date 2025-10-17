@@ -12,10 +12,10 @@ from pathlib import Path
 
 from app.core.logging import get_logger
 from app.services.data_pipeline.pipeline_monitor import get_pipeline_monitor
-from machinelearningmodel.training.training_pipeline import TrainingPipeline
-from machinelearningmodel.training.model_evaluator import ModelEvaluator
-from machinelearningmodel.training.ab_testing import ABTestingFramework
-from machinelearningmodel.training.model_versioning import ModelVersionManager
+from app.ml.training.training_pipeline import TrainingPipeline
+from app.ml.training.model_evaluator import ModelEvaluator
+from app.ml.training.ab_testing import ABTestingFramework
+from app.ml.training.model_versioning import ModelVersionManager
 from app.repositories.profile import ProfileRepository
 from app.repositories.job import JobRepository
 from app.core.database import get_db_session

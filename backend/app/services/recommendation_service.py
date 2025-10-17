@@ -22,12 +22,8 @@ from app.repositories.skill import SkillRepository
 from app.core.exceptions import ServiceException
 
 # Import ML components
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'machinelearningmodel'))
-
 try:
-    from machinelearningmodel.recommendation_engine import (
+    from app.ml.recommendation_engine import (
         HybridRecommendationEngine,
         CareerRecommendation,
         LearningPath,

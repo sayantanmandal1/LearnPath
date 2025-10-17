@@ -370,7 +370,7 @@ class BackupRecoveryManager:
             
             # Backup model metadata and version info
             try:
-                from machinelearningmodel.training.model_versioning import ModelVersionManager
+                from app.ml.training.model_versioning import ModelVersionManager
                 version_manager = ModelVersionManager()
                 
                 model_metadata = await version_manager.get_all_model_metadata()
@@ -756,7 +756,7 @@ class BackupRecoveryManager:
         metadata_file = models_backup_dir / "model_metadata.json"
         if metadata_file.exists():
             try:
-                from machinelearningmodel.training.model_versioning import ModelVersionManager
+                from app.ml.training.model_versioning import ModelVersionManager
                 version_manager = ModelVersionManager()
                 
                 with open(metadata_file, 'r') as f:

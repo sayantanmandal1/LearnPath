@@ -41,9 +41,10 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/ai_career_db
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=your-secret-key-here-change-in-production
-      - JWT_SECRET_KEY=your-jwt-secret-key-here-change-in-production
+      - SECRET_KEY=test-secret-key-for-development-only-32-chars
+      - JWT_SECRET_KEY=test-jwt-secret-key-for-development-only-32-chars
       - DEBUG=true
+      - GEMINI_API_KEY=AIzaSyDgr4rW2ts3Sj012r5Sqk52EWudTC5WNNI
     volumes:
       - ./backend:/app
     depends_on:

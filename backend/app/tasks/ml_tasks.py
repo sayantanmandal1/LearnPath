@@ -31,7 +31,7 @@ def generate_career_recommendations(self, user_id: str, profile_data: Dict[str, 
         
         # Import ML services (lazy import to avoid circular dependencies)
         from app.services.recommendation_service import RecommendationService
-        from machinelearningmodel.recommendation_engine import RecommendationEngine
+        from app.ml.recommendation_engine import RecommendationEngine
         
         # Initialize services
         ml_engine = RecommendationEngine()
@@ -104,7 +104,7 @@ def generate_learning_path(self, user_id: str, skill_gaps: Dict[str, float], tar
         )
         
         from app.services.learning_path_service import LearningPathService
-        from machinelearningmodel.learning_path_optimizer import LearningPathOptimizer
+        from app.ml.learning_path_optimizer import LearningPathOptimizer
         
         # Initialize services
         optimizer = LearningPathOptimizer()
@@ -167,8 +167,8 @@ def process_resume_analysis(self, user_id: str, resume_content: str) -> Dict[str
             meta={"current": 25, "total": 100, "status": "Initializing NLP models"}
         )
         
-        from machinelearningmodel.nlp_engine import NLPEngine
-        from machinelearningmodel.skill_classifier import SkillClassifier
+        from app.ml.nlp_engine import NLPEngine
+        from app.ml.skill_classifier import SkillClassifier
         
         # Initialize NLP services
         nlp_engine = NLPEngine()
@@ -231,8 +231,8 @@ def process_resume_analysis(self, user_id: str, resume_content: str) -> Dict[str
 def update_ml_models() -> Dict[str, Any]:
     """Periodic task to update ML models with new data"""
     try:
-        from machinelearningmodel.recommendation_engine import RecommendationEngine
-        from machinelearningmodel.skill_classifier import SkillClassifier
+        from app.ml.recommendation_engine import RecommendationEngine
+        from app.ml.skill_classifier import SkillClassifier
         
         logger.info("Starting ML model update process")
         
