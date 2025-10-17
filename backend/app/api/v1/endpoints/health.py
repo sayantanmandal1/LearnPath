@@ -63,7 +63,7 @@ async def detailed_health_check(db: AsyncSession = Depends(get_db)):
     # Redis check
     try:
         redis_start = time.time()
-        await redis_manager.ping()
+        await redis_manager.redis.ping()
         checks["redis"] = {
             "status": "healthy",
             "response_time": time.time() - redis_start,
@@ -264,12 +264,9 @@ async def readiness_check(db: AsyncSession = Depends(get_db)):
     try:
         # Check database
         await db.execute("SELECT 1")
-        
         # Check Redis
-        await redis_manager.ping()
-        
+        await redis_manager.redis.ping()
         return {"status": "ready"}
-    
     except Exception as e:
         logger.error(f"Readiness check failed: {e}")
         raise HTTPException(
@@ -317,7 +314,7 @@ async def check_dependencies():
     
     # Check Redis
     try:
-        await redis_manager.ping()
+        await redis_manager.redis.ping()
         dependencies["redis"] = {"status": "healthy", "type": "redis"}
     except Exception as e:
         dependencies["redis"] = {"status": "unhealthy", "error": str(e), "type": "redis"}

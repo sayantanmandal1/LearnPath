@@ -22,6 +22,41 @@ from app.core.exceptions import ValidationError, NotFoundError, ConflictError
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+@router.get("/me/stats")
+async def get_my_profile_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Return placeholder stats for current user."""
+    # TODO: Replace with real stats logic
+    return {
+        "courses_completed": 0,
+        "courses_target": 0,
+        "skills_mastered": 0,
+        "skills_target": 0,
+        "certificates_earned": 0,
+        "certificates_target": 0,
+        "study_hours": 0,
+        "study_hours_target": 0
+    }
+
+@router.get("/me/achievements")
+async def get_my_profile_achievements(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Return placeholder achievements for current user."""
+    # TODO: Replace with real achievements logic
+    return []
+
+@router.get("/me/activities")
+async def get_my_profile_activities(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Return placeholder activities for current user."""
+    # TODO: Replace with real activities logic
+    return []
 
 # Initialize profile service (in production, this would be dependency injected)
 profile_service = UserProfileService()
@@ -140,23 +175,48 @@ async def get_my_profile(
 ):
     """Get current user's profile."""
     try:
-        from app.repositories.profile import ProfileRepository
-        profile_repo = ProfileRepository()
-        
-        profile = await profile_repo.get_by_user_id(db, current_user.id)
-        if not profile:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Profile not found"
-            )
-        
-        return ProfileResponse.from_orm(profile)
+        # For now, just return default profile data
+        # TODO: Implement proper profile lookup from database
+        return ProfileResponse(
+            id=str(current_user.id),
+            user_id=str(current_user.id),
+            dream_job="",
+            experience_years=None,
+            current_role="",
+            location="",
+            github_username="",
+            leetcode_id="",
+            linkedin_url="",
+            codeforces_id="",
+            industry="",
+            desired_role="",
+            career_goals="",
+            timeframe="",
+            salary_expectation="",
+            education="",
+            certifications="",
+            languages="",
+            work_type="",
+            company_size="",
+            work_culture="",
+            benefits=[],
+            skills={},
+            platform_data={},
+            resume_data={},
+            career_interests={},
+            skill_gaps={},
+            profile_score=0.0,
+            completeness_score=0.0,
+            data_last_updated=None,
+            created_at=current_user.created_at,
+            updated_at=current_user.updated_at
+        )
         
     except Exception as e:
         logger.error(f"Error getting profile for user {current_user.id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get profile"
+            detail=f"Failed to get profile: {str(e)}"
         )
 
 

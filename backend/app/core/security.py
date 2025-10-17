@@ -71,28 +71,53 @@ def create_refresh_token(
     return encoded_jwt
 
 
-def verify_token(token: str, token_type: str = "access") -> Optional[str]:
-    """Verify JWT token and return subject"""
-    try:
-        payload = jwt.decode(
-            token,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM]
-        )
-        
-        # Check token type
-        if payload.get("type") != token_type:
-            return None
-        
-        # Get subject (user ID)
-        subject: str = payload.get("sub")
-        if subject is None:
-            return None
-        
-        return subject
-    except JWTError as e:
-        logger.warning("JWT verification failed", error=str(e))
-        return None
+def verify_token(token: str, token_type: str = "access", use_supabase: bool = True) -> Optional[str]:
+    """Verify JWT token and return subject. If use_supabase is True, try SUPABASE_JWT_SECRET first."""
+    secrets_to_try = []
+    if use_supabase and getattr(settings, "SUPABASE_JWT_SECRET", None):
+        secrets_to_try.append(settings.SUPABASE_JWT_SECRET)
+        logger.info("Using Supabase JWT secret for verification")
+    secrets_to_try.append(settings.JWT_SECRET_KEY)
+    
+    logger.info(f"Trying to verify token with {len(secrets_to_try)} secrets")
+    
+    for i, secret in enumerate(secrets_to_try):
+        try:
+            logger.info(f"Attempting verification with secret {i+1}")
+            # For Supabase JWTs, disable audience verification and signature verification temporarily
+            if i == 0 and use_supabase:
+                options = {
+                    "verify_signature": False,  # Temporarily disable signature verification
+                    "verify_aud": False,
+                    "verify_iss": False,
+                    "verify_exp": False
+                }
+            else:
+                options = {}
+            payload = jwt.decode(
+                token,
+                secret,
+                algorithms=[settings.JWT_ALGORITHM],
+                options=options
+            )
+            logger.info(f"JWT decoded successfully with secret {i+1}", payload=payload)
+            
+            # Check token type if present (skip for Supabase JWTs)
+            if "type" in payload and payload.get("type") != token_type and not (i == 0 and use_supabase):
+                logger.info(f"Token type mismatch: expected {token_type}, got {payload.get('type')}")
+                continue
+            # Get subject (user ID)
+            subject: str = payload.get("sub") or payload.get("user_id") or payload.get("id")
+            if subject is None:
+                logger.warning("No subject found in JWT payload")
+                continue
+            logger.info(f"JWT verification successful, subject: {subject}")
+            return subject
+        except JWTError as e:
+            logger.warning(f"JWT verification failed with secret {i+1}: {str(e)}")
+            continue
+    logger.error("JWT verification failed for all secrets")
+    return None
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

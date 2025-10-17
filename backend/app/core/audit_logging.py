@@ -9,8 +9,8 @@ from enum import Enum
 import structlog
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import Column, String, DateTime, Text, Integer, Boolean
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Column, String, DateTime, Text, Integer, Boolean, JSON
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
 from app.core.config import settings
@@ -89,7 +89,7 @@ class AuditLog(Base):
     method = Column(String(10), nullable=True)
     status_code = Column(Integer, nullable=True)
     message = Column(Text, nullable=False)
-    details = Column(JSONB, nullable=True)
+    details = Column(JSON, nullable=True)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     
     # Additional security fields

@@ -164,7 +164,7 @@ class BackgroundMonitoringService:
         try:
             start_time = time.time()
             
-            await redis_manager.ping()
+            await redis_manager.redis.ping()
             
             response_time = (time.time() - start_time) * 1000
             

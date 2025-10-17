@@ -223,13 +223,23 @@ def create_application() -> FastAPI:
     )
 
     # Add CORS middleware with proper configuration
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS if not settings.DEBUG else ["*"],
-        allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
-        allow_methods=settings.CORS_ALLOW_METHODS,
-        allow_headers=settings.CORS_ALLOW_HEADERS,
-    )
+    if settings.DEBUG:
+        # In debug mode, allow all origins but with specific configuration
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=False,  # Cannot use credentials with allow_origins=*
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    else:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.CORS_ORIGINS,
+            allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+            allow_methods=settings.CORS_ALLOW_METHODS,
+            allow_headers=settings.CORS_ALLOW_HEADERS,
+        )
 
     # Add custom middleware (order matters - first added is outermost)
     try:

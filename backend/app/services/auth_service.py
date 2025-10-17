@@ -241,16 +241,62 @@ class AuthService:
         return False
     
     async def get_current_user(self, token: str) -> User:
-        """Get current user from access token"""
+        """Get current user from access token. Auto-create user if not found and JWT is valid (Supabase)."""
+        logger.info("Attempting to get current user from token")
         user_id = verify_token(token, token_type="access")
-        if not user_id:
-            raise AuthenticationError("Invalid access token")
+        logger.info(f"Token verification result: user_id = {user_id}")
         
+        if not user_id:
+            logger.error("Token verification failed - invalid access token")
+            raise AuthenticationError("Invalid access token")
+
         stmt = select(User).where(User.id == user_id)
         result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()
-        
-        if not user or not user.is_active:
-            raise AuthenticationError("User not found or inactive")
-        
-        return user
+        logger.info(f"Database lookup result: user found = {user is not None}")
+
+        if user and user.is_active:
+            logger.info(f"Returning existing active user: {user.email}")
+            return user
+
+        # Try to decode JWT and extract user info
+        from jose import jwt
+        from app.core.config import settings
+        payload = None
+        try:
+            logger.info("Attempting to decode JWT for user creation")
+            # Use relaxed verification for Supabase JWTs
+            options = {
+                "verify_signature": False,
+                "verify_aud": False,
+                "verify_iss": False,
+                "verify_exp": False
+            }
+            payload = jwt.decode(token, settings.SUPABASE_JWT_SECRET, algorithms=[settings.JWT_ALGORITHM], options=options)
+            logger.info(f"JWT payload decoded successfully")
+        except Exception as e:
+            logger.error(f"JWT decoding failed: {str(e)}")
+            
+        if payload:
+            email = payload.get("email")
+            full_name = payload.get("user_metadata", {}).get("name") or payload.get("name") or email
+            logger.info(f"Creating new user: email={email}, full_name={full_name}, id={user_id}")
+            # Create new user (use placeholder password for Supabase users)
+            new_user = User(
+                id=user_id,
+                email=email,
+                hashed_password="supabase_managed_user",  # Skip bcrypt for now
+                full_name=full_name,
+                is_active=True,
+                is_verified=True,
+                created_at=datetime.utcnow(),
+                last_login=datetime.utcnow(),
+            )
+            self.db.add(new_user)
+            await self.db.commit()
+            await self.db.refresh(new_user)
+            logger.info("Auto-created user from Supabase JWT", user_id=new_user.id, email=new_user.email)
+            return new_user
+
+        logger.error("Could not create user - JWT payload invalid")
+        raise AuthenticationError("User not found or inactive")

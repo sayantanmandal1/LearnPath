@@ -1,6 +1,9 @@
-.kiro/
-machinelearningmodel/__pycache__
-*__pycache__
-frontend/node_modules
-frontend/.next
-*.pdf
+node_modules/
+.env
+.DS_Store
+dist/
+build/
+.vscode/
+*.log
+.env.production
+.env.test

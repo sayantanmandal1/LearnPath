@@ -2,8 +2,8 @@
 Job application tracking models.
 """
 
-from sqlalchemy import Column, String, DateTime, Text, Boolean, Float, ForeignKey, Integer
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Column, String, DateTime, Text, Boolean, Float, ForeignKey, Integer, JSON
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -30,8 +30,8 @@ class JobApplication(Base):
     
     # Match information
     match_score = Column(Float, nullable=True)
-    skill_matches = Column(JSONB, nullable=True)
-    skill_gaps = Column(JSONB, nullable=True)
+    skill_matches = Column(JSON, nullable=True)
+    skill_gaps = Column(JSON, nullable=True)
     
     # Application details
     application_method = Column(String(100), nullable=True)  # direct, linkedin, naukri, etc.
@@ -78,7 +78,7 @@ class JobApplicationFeedback(Base):
     gap_analysis_accuracy = Column(Integer, nullable=True)  # How accurate was the gap analysis
     
     # System improvement data
-    suggested_improvements = Column(JSONB, nullable=True)
+    suggested_improvements = Column(JSON, nullable=True)
     
     # Metadata
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
@@ -108,7 +108,7 @@ class JobRecommendationFeedback(Base):
     
     # Detailed feedback
     feedback_text = Column(Text, nullable=True)
-    improvement_suggestions = Column(JSONB, nullable=True)
+    improvement_suggestions = Column(JSON, nullable=True)
     
     # Metadata
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())

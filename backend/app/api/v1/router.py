@@ -4,12 +4,13 @@ Main API v1 router
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
-    auth, external_profiles, profiles, recommendations, career_trajectory, 
+    auth, external_profiles, profiles, career_trajectory, 
     learning_paths, analytics, job_market, vector_search, comprehensive_api, performance, performance_optimization, health,
     privacy, security, pipeline_automation, career_analysis, market_insights, dashboard, resume,
     ai_analysis, real_time_jobs, data_sync, supabase_webhooks, platform_accounts, career_guidance, error_handling,
     workflow_integration, job_applications, job_recommendation_integration, system_monitoring
 )
+from app.api.v1.endpoints import recommendations_fixed as recommendations
 
 api_router = APIRouter()
 
