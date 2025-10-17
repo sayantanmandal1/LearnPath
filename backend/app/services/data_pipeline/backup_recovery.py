@@ -340,8 +340,8 @@ class BackupRecoveryManager:
             
             # Define model directories to backup
             model_paths = [
-                Path("machinelearningmodel/models"),
-                Path("machinelearningmodel/training/saved_models"),
+                Path("backend/app/ml/models"),
+                Path("backend/app/ml/training/saved_models"),
                 Path("/app/models")  # Production model storage
             ]
             
@@ -743,7 +743,7 @@ class BackupRecoveryManager:
         # Restore model files
         for model_dir in models_backup_dir.iterdir():
             if model_dir.is_dir() and model_dir.name != "model_metadata.json":
-                dest_path = Path("machinelearningmodel") / model_dir.name
+                dest_path = Path("backend/app/ml") / model_dir.name
                 
                 # Remove existing model directory if it exists
                 if dest_path.exists():
