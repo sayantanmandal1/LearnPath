@@ -7,3 +7,4 @@ build/
 *.log
 .env.production
 .env.test
+machinelearningmodel/__pycache__
