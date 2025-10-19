@@ -6,7 +6,9 @@
 .env.development
 backend/.env
 frontend/.env
-
+backend/.env
+*/.env
+*/__pycache__
 # Dependencies
 node_modules/
 __pycache__/
