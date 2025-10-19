@@ -23,7 +23,7 @@ from app.services.performance_monitoring import performance_monitor
 from app.core.monitoring import system_monitor
 from app.core.graceful_degradation import degradation_manager
 from app.core.alerting import alerting_system
-from app.services.data_pipeline.pipeline_initializer import initialize_pipeline_automation, shutdown_pipeline_automation
+# Pipeline automation removed for simplicity
 from app.services.background_monitoring_service import background_monitoring_service
 
 logger = structlog.get_logger()

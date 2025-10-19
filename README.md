@@ -57,16 +57,15 @@ cd LearnPath
 
 ### 2. Setup Environment Variables
 ```bash
-# Create secure .env files from templates
-python setup_env.py
-
-# Or manually copy and edit templates
+# Copy and edit environment files
 cp backend/.env.template backend/.env
 cp frontend/.env.template frontend/.env
-# Then edit the .env files with your actual API keys
+
+# Edit the .env files with your actual API keys
+# Update GEMINI_API_KEY, SECRET_KEY, JWT_SECRET_KEY, etc.
 ```
 
-### 3. Start Backend Services
+### 3. Start All Services
 ```bash
 # Start all services (PostgreSQL, Redis, Backend API)
 docker-compose up -d
@@ -201,17 +200,18 @@ SELECT * FROM users WHERE email = 'demo@aicareer.com';
 
 ### Environment Variables
 ```bash
-# Use the setup script to create secure .env files
-python setup_env.py
+# Create from templates and update with your values:
+cp backend/.env.template backend/.env
+cp frontend/.env.template frontend/.env
 
-# Or manually create from templates:
-# backend/.env - Contains database, API keys, JWT secrets
-# frontend/.env - Contains API URLs and Supabase config
+# Key variables to update in backend/.env:
+SECRET_KEY=your-32-character-secret-key
+JWT_SECRET_KEY=your-32-character-jwt-secret
+GEMINI_API_KEY=your-actual-gemini-api-key
 
-# Key variables to update:
-# GEMINI_API_KEY=your-actual-gemini-api-key
-# VITE_SUPABASE_URL=your-supabase-project-url
-# VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+# Key variables to update in frontend/.env:
+VITE_SUPABASE_URL=your-supabase-project-url
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
 ### Docker Production

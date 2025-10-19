@@ -1,10 +1,45 @@
-node_modules/
+# Environment variables (NEVER commit these!)
 .env
-.DS_Store
-dist/
-build/
-.vscode/
-*.log
+.env.local
 .env.production
 .env.test
-machinelearningmodel/__pycache__
+.env.development
+backend/.env
+frontend/.env
+
+# Dependencies
+node_modules/
+__pycache__/
+machinelearningmodel/__pycache__/
+
+# Build outputs
+dist/
+build/
+.next/
+
+# IDE and OS files
+.DS_Store
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+
+# Temporary files
+.tmp/
+temp/
+
+# Docker
+.dockerignore
+
+# Secrets and keys (extra protection)
+*.key
+*.pem
+secrets/
+keys/
